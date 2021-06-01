@@ -2,11 +2,10 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 
-
 #[derive(Debug, Deserialize)]
 struct Strategy<'a> {
     main_pot_target: f32,
-    
+
     #[serde(borrow)]
     pots: Vec<(&'a str, f32)>,
 }
