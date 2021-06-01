@@ -7,3 +7,4 @@ edition = "2018"
 
 [dependencies]
 monzo-lib = "0.2.0"
+serde = { version = "1.0.125", features = ["derive"] }
