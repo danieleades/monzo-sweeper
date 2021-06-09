@@ -1,6 +1,26 @@
-#![deny(clippy::all)]
+#![deny(
+    clippy::all,
+    missing_debug_implementations,
+    missing_copy_implementations
+)]
 #![warn(clippy::pedantic)]
 
-fn main() {
-    println!("Hello, world!");
+mod app;
+use app::App;
+mod operation;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("failed to load config")]
+    Load(#[from] app::Error),
+
+    #[error("failed to run operations")]
+    Run(#[from] operation::Error),
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    let app = App::from_args()?;
+    app.run().await?;
+    Ok(())
 }
