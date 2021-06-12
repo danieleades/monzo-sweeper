@@ -41,6 +41,7 @@ impl Config {
             pots.as_slice(),
         );
 
+        print_transactions(&transactions);
         self.do_sweep(client, &account_id, &transactions).await?;
         send_report(client, &account_id, &transactions).await?;
         Ok(())
@@ -108,7 +109,13 @@ async fn send_report(
         .await
 }
 
-pub fn calculate_transactions(
+fn print_transactions(transactions: &[(&Pot, i64)]) {
+    for (pot, amount) in transactions {
+        println!("{}: {}", pot.name, amount);
+    }
+}
+
+fn calculate_transactions(
     current_account_balance: i64,
     current_account_goal: i64,
     pots: &[Pot],
