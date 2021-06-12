@@ -43,9 +43,15 @@ impl Config {
             pots.as_slice(),
         );
 
-        print_transactions(&transactions);
-        self.do_sweep(client, &account_id, &transactions).await?;
-        send_report(client, &account_id, &transactions).await?;
+        println!("Running Sweep");
+        if transactions.is_empty() {
+            println!("nothing to do ...");
+        } else {
+            print_transactions(&transactions);
+            self.do_sweep(client, &account_id, &transactions).await?;
+            send_report(client, &account_id, &transactions).await?;
+        }
+
         Ok(())
     }
 
@@ -97,7 +103,7 @@ async fn send_report(
     let mut body = String::new();
 
     for (pot, amount) in transactions {
-        body += &format!("transferred {} pence into {}", amount, &pot.name);
+        body += &format!("{}: {}\n", &pot.name, format_currency(pot, *amount));
     }
 
     client
@@ -111,9 +117,15 @@ async fn send_report(
         .await
 }
 
+fn format_currency(pot: &Pot, amount: i64) -> String {
+    let currency = rusty_money::iso::find(&pot.currency).unwrap();
+    let money = rusty_money::Money::from_minor(amount, currency);
+    format!("{}", money)
+}
+
 fn print_transactions(transactions: &[(&Pot, i64)]) {
     for (pot, amount) in transactions {
-        println!("{}: {}", pot.name, amount);
+        println!(" - {}: {}", pot.name, format_currency(pot, *amount));
     }
 }
 
