@@ -37,7 +37,9 @@ impl Config {
 
         let transactions = calculate_transactions(
             balance,
-            self.current_account_goal.unwrap_or_default(),
+            self.current_account_goal
+                .map(|f| f * 100)
+                .unwrap_or_default(),
             pots.as_slice(),
         );
 
