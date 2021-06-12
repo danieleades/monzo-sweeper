@@ -22,7 +22,7 @@ mod tests {
     #[test]
     fn deserialise_yaml() {
         let raw = r#"
-        sweep: 
+        sweep:
             current_account_goal: 10000
 
             pots:
@@ -39,7 +39,7 @@ mod tests {
     #[test]
     fn deserialise_yaml_vec() {
         let raw = r#"
-        sweep: 
+        sweep:
             current_account_goal: 10000
 
             pots:

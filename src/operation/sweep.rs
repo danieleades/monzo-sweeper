@@ -58,7 +58,9 @@ impl Config {
                     .withdraw_from_pot(&pot.id, account_id, amount.abs())
                     .await?;
             } else {
-                client.deposit_into_pot(&pot.id, account_id, *amount).await?;
+                client
+                    .deposit_into_pot(&pot.id, account_id, *amount)
+                    .await?;
             }
         }
 
@@ -189,23 +191,6 @@ impl PotExt for Pot {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn deserialise_toml() {
-        let raw = r#"
-        current_account_goal = 100
-
-        pots = [
-            "bills",
-            "lottery",
-            "allowance",
-            "student loan",
-            "savings",
-        ]
-        "#;
-
-        let _: Config = toml::from_str(raw).unwrap();
-    }
 
     #[test]
     fn deserialise_yaml() {
