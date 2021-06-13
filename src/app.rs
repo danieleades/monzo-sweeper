@@ -84,7 +84,7 @@ async fn process_transactions(
     Ok(())
 }
 
-fn transactions_summary(transactions: &Vec<(&Pot, i64)>) -> String {
+fn transactions_summary(transactions: &[(&Pot, i64)]) -> String {
     let mut summary = String::new();
 
     for (pot, amount) in transactions {
