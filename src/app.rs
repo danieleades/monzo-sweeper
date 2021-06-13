@@ -1,6 +1,10 @@
-use crate::operation::{self, Operation};
+use crate::{
+    operation,
+    operation::{Op, Operation},
+    state,
+};
 use clap::Clap;
-use monzo::client::QuickClient;
+use monzo::{client::QuickClient, Pot};
 use std::{
     fs::File,
     io,
@@ -13,6 +17,7 @@ pub enum Error {
     Monzo(#[from] monzo::Error),
     Io(#[from] io::Error),
     Yaml(#[from] serde_yaml::Error),
+    Operation(#[from] operation::Error),
 }
 
 #[derive(Debug, Clap)]
@@ -28,7 +33,7 @@ struct Args {
 
 pub struct App {
     client: QuickClient,
-    operations: Vec<Operation>,
+    operations: Vec<Op>,
 }
 
 impl App {
@@ -44,13 +49,53 @@ impl App {
         Self::new(&args.access_token, &args.config)
     }
 
-    pub async fn run(&self) -> Result<(), operation::Error> {
+    pub async fn run(&self) -> Result<(), Error> {
         for op in &self.operations {
-            match op {
-                Operation::Sweep(sweep) => sweep.run(&self.client).await?,
+            let state = state::get(&self.client).await?;
+            println!("Running {}", op.name());
+            let transactions = op.transactions(&state)?;
+            if transactions.is_empty() {
+                println!("nothing to do ...");
+            } else {
+                println!("{}", transactions_summary(&transactions));
+                process_transactions(&self.client, transactions).await?;
             }
         }
 
         Ok(())
     }
+}
+
+async fn process_transactions(
+    client: &QuickClient,
+    transactions: Vec<(&Pot, i64)>,
+) -> Result<(), monzo::Error> {
+    for (pot, amount) in transactions {
+        let account_id = &pot.current_account_id;
+        if amount < 0 {
+            client
+                .withdraw_from_pot(&pot.id, account_id, amount.abs())
+                .await?;
+        } else {
+            client.deposit_into_pot(&pot.id, account_id, amount).await?;
+        }
+    }
+
+    Ok(())
+}
+
+fn transactions_summary(transactions: &Vec<(&Pot, i64)>) -> String {
+    let mut summary = String::new();
+
+    for (pot, amount) in transactions {
+        summary += &format!("{}: {}", &pot.name, &format_currency(pot, *amount));
+    }
+
+    summary
+}
+
+fn format_currency(pot: &Pot, amount: i64) -> String {
+    let currency = rusty_money::iso::find(&pot.currency).unwrap();
+    let money = rusty_money::Money::from_minor(amount, currency);
+    format!("{}", money)
 }
