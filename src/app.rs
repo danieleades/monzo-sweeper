@@ -2,9 +2,11 @@ use crate::{
     operation,
     operation::{Op, Operation},
     state,
+    transactions::{Ledger, Transactions},
 };
 use clap::Clap;
-use monzo::{client::QuickClient, Pot};
+use futures_util::future::try_join_all;
+use monzo::{client::QuickClient, Account, Pot};
 use std::{
     fs::File,
     io,
@@ -53,12 +55,12 @@ impl App {
         for op in &self.operations {
             let state = state::get(&self.client).await?;
             println!("Running {}", op.name());
-            let transactions = op.transactions(&state)?;
-            if transactions.is_empty() {
+            let ledger = op.transactions(&state)?;
+            if ledger.transactions.is_empty() {
                 println!("nothing to do ...");
             } else {
-                println!("{}", transactions_summary(&transactions));
-                process_transactions(&self.client, transactions).await?;
+                println!("{}", transactions_summary(&ledger));
+                process_transactions(&self.client, ledger).await?;
             }
         }
 
@@ -68,27 +70,51 @@ impl App {
 
 async fn process_transactions(
     client: &QuickClient,
-    transactions: Vec<(&Pot, i64)>,
+    ledger: Ledger<'_>,
 ) -> Result<(), monzo::Error> {
-    for (pot, amount) in transactions {
-        let account_id = &pot.current_account_id;
-        if amount < 0 {
-            client
-                .withdraw_from_pot(&pot.id, account_id, amount.abs())
-                .await?;
-        } else {
-            client.deposit_into_pot(&pot.id, account_id, amount).await?;
-        }
-    }
+    try_join_all(
+        ledger
+            .transactions
+            .into_iter()
+            .map(|(account, transactions)| process_account(client, account, transactions)),
+    )
+    .await?;
 
     Ok(())
 }
 
-fn transactions_summary(transactions: &[(&Pot, i64)]) -> String {
+async fn process_account<'a>(
+    client: &'a QuickClient,
+    account: &Account,
+    transactions: Transactions<'a>,
+) -> Result<(), monzo::Error> {
+    try_join_all(
+        transactions
+            .withdrawals
+            .into_iter()
+            .map(|(pot, amount)| client.withdraw_from_pot(&pot.id, &account.id, amount.into())),
+    )
+    .await?;
+
+    try_join_all(
+        transactions
+            .deposits
+            .into_iter()
+            .map(|(pot, amount)| client.deposit_into_pot(&pot.id, &account.id, amount.into())),
+    )
+    .await?;
+
+    Ok(())
+}
+
+fn transactions_summary(ledger: &Ledger) -> String {
     let mut summary = String::new();
 
-    for (pot, amount) in transactions {
-        summary += &format!("{}: {}", &pot.name, &format_currency(pot, *amount));
+    for (account, transactions) in &ledger.transactions {
+        summary += &format!("{}:\n", account.description);
+        for (pot, amount) in transactions {
+            summary += &format!("{}: {}\n", &pot.name, &format_currency(pot, amount));
+        }
     }
 
     summary

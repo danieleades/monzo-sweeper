@@ -2,91 +2,58 @@ use monzo::{Account, AccountType, Pot};
 use serde::Deserialize;
 use std::cmp::Ordering;
 
-use crate::state::State;
-
 use super::Operation;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error(transparent)]
-    Monzo(#[from] monzo::Error),
-
-    #[error("not found: {0}")]
-    NotFound(String),
-}
+use crate::{operation::Error, state::State, transactions::Ledger};
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Sweep {
     #[serde(default)]
     pub current_account_id: Option<String>,
-    pub current_account_goal: Option<i64>,
+    #[serde(default)]
+    pub current_account_goal: i64,
     pub pots: Vec<String>,
 }
 
 impl Operation for Sweep {
-    type Err = Error;
-
     fn name(&self) -> &'static str {
         "Sweep"
     }
 
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Vec<(&'a Pot, i64)>, Self::Err> {
-        let account_id = self.find_current_account_id(&state.accounts)?;
-        let balance = state.balance.get(account_id).unwrap().balance();
-        let pots = sort_and_filter_pots(state.pots.get(account_id).unwrap(), &self.pots)?;
+    fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Error> {
+        let account = self.find_current_account(&state.accounts)?;
+        let balance = state.balance.get(&account.id).unwrap().balance();
+        let pots = sort_and_filter_pots(state.pots.get(&account.id).unwrap(), &self.pots)?;
 
-        let transactions = calculate_transactions(
-            balance,
-            self.current_account_goal
-                .map(|f| f * 100)
-                .unwrap_or_default(),
-            pots.as_slice(),
-        );
+        let transactions =
+            calculate_transactions(balance, self.current_account_goal * 100, pots.as_slice());
 
-        Ok(transactions)
+        let mut ledger = Ledger::default();
+        transactions
+            .into_iter()
+            .for_each(|t| ledger.push(account, t));
+
+        Ok(ledger)
     }
 }
 
 impl Sweep {
-    fn find_current_account_id<'a>(&'a self, accounts: &'a [Account]) -> Result<&'a String, Error> {
-        if let Some(id) = &self.current_account_id {
-            Ok(id)
+    fn find_current_account<'a>(&'a self, accounts: &'a [Account]) -> Result<&'a Account, Error> {
+        let account = if let Some(id) = &self.current_account_id {
+            accounts
+                .iter()
+                .find(|account| &account.id == id)
+                .ok_or_else(|| Error::NotFound("unable to determine current account".to_string()))?
         } else {
-            let id = accounts
+            accounts
                 .iter()
                 .find(|account| matches!(account.account_type, AccountType::UkRetail))
-                .map(|account| &account.id)
-                .ok_or_else(|| {
-                    Error::NotFound("unable to determine current account".to_string())
-                })?;
+                .ok_or_else(|| Error::NotFound("unable to determine current account".to_string()))?
+        };
 
-            Ok(id)
-        }
+        Ok(account)
     }
 }
-
-// async fn send_report(
-//     client: &QuickClient,
-//     account_id: &str,
-//     transactions: &[(&Pot, i64)],
-// ) -> Result<(), monzo::Error> {
-//     let mut body = String::new();
-
-//     for (pot, amount) in transactions {
-//         body += &format!("{}: {}\n", &pot.name, format_currency(pot,
-// *amount));     }
-
-//     client
-//         .basic_feed_item(
-//             account_id,
-//             "Sweep Completed",
-//             "http://www.nyan.cat/cats/original.gif",
-//         )
-//         .body(&body)
-//         .send()
-//         .await
-// }
 
 fn calculate_transactions<'a>(
     current_account_balance: i64,
