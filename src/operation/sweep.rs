@@ -1,139 +1,49 @@
-use monzo::{client::QuickClient, AccountType, Pot};
+use crate::{
+    operation::{util::find_current_account, Error, Operation},
+    state::State,
+    transactions::Ledger,
+};
+use monzo::Pot;
 use serde::Deserialize;
-use std::{cmp::Ordering, io};
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error(transparent)]
-    Monzo(#[from] monzo::Error),
-
-    #[error(transparent)]
-    Io(#[from] io::Error),
-
-    #[error("not found: {0}")]
-    NotFound(String),
-}
+use std::cmp::Ordering;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Config {
+pub struct Sweep {
     #[serde(default)]
     pub current_account_id: Option<String>,
-    pub current_account_goal: Option<i64>,
+    #[serde(default)]
+    pub current_account_goal: i64,
     pub pots: Vec<String>,
 }
 
-impl Config {
-    pub async fn run(&self, client: &QuickClient) -> Result<(), Error> {
-        let account_id = self.find_current_account_id(client).await?;
-        let balance = client.balance(&account_id).await?.balance();
-        let active_pots: Vec<_> = client
-            .pots(&account_id)
-            .await?
+impl Operation for Sweep {
+    fn name(&self) -> &'static str {
+        "Sweep"
+    }
+
+    fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Error> {
+        let account = find_current_account(&state.accounts, self.current_account_id.as_deref())?;
+        let balance = state.balance.get(&account.id).unwrap().balance();
+        let pots = sort_and_filter_pots(state.pots.get(&account.id).unwrap(), &self.pots)?;
+
+        let transactions =
+            calculate_transactions(balance, self.current_account_goal * 100, pots.as_slice());
+
+        let mut ledger = Ledger::default();
+        transactions
             .into_iter()
-            .filter(|pot| !pot.deleted)
-            .collect();
-        let pots = get_info(active_pots, &self.pots);
+            .for_each(|t| ledger.push(account, t));
 
-        let transactions = calculate_transactions(
-            balance,
-            self.current_account_goal
-                .map(|f| f * 100)
-                .unwrap_or_default(),
-            pots.as_slice(),
-        );
-
-        println!("Running Sweep");
-        if transactions.is_empty() {
-            println!("nothing to do ...");
-        } else {
-            print_transactions(&transactions);
-            self.do_sweep(client, &account_id, &transactions).await?;
-            send_report(client, &account_id, &transactions).await?;
-        }
-
-        Ok(())
-    }
-
-    async fn do_sweep(
-        &self,
-        client: &QuickClient,
-        account_id: &str,
-        transactions: &[Transaction<'_>],
-    ) -> Result<(), monzo::Error> {
-        for (pot, amount) in transactions {
-            if amount < &0 {
-                client
-                    .withdraw_from_pot(&pot.id, account_id, amount.abs())
-                    .await?;
-            } else {
-                client
-                    .deposit_into_pot(&pot.id, account_id, *amount)
-                    .await?;
-            }
-        }
-
-        Ok(())
-    }
-
-    async fn find_current_account_id(&self, client: &QuickClient) -> Result<String, Error> {
-        if let Some(id) = &self.current_account_id {
-            Ok(id.to_string())
-        } else {
-            let id = client
-                .accounts()
-                .await?
-                .into_iter()
-                .find(|account| matches!(account.account_type, AccountType::UkRetail))
-                .map(|account| account.id)
-                .ok_or_else(|| {
-                    Error::NotFound("unable to determine current account".to_string())
-                })?;
-
-            Ok(id)
-        }
+        Ok(ledger)
     }
 }
 
-async fn send_report(
-    client: &QuickClient,
-    account_id: &str,
-    transactions: &[(&Pot, i64)],
-) -> Result<(), monzo::Error> {
-    let mut body = String::new();
-
-    for (pot, amount) in transactions {
-        body += &format!("{}: {}\n", &pot.name, format_currency(pot, *amount));
-    }
-
-    client
-        .basic_feed_item(
-            account_id,
-            "Sweep Completed",
-            "http://www.nyan.cat/cats/original.gif",
-        )
-        .body(&body)
-        .send()
-        .await
-}
-
-fn format_currency(pot: &Pot, amount: i64) -> String {
-    let currency = rusty_money::iso::find(&pot.currency).unwrap();
-    let money = rusty_money::Money::from_minor(amount, currency);
-    format!("{}", money)
-}
-
-fn print_transactions(transactions: &[(&Pot, i64)]) {
-    for (pot, amount) in transactions {
-        println!(" - {}: {}", pot.name, format_currency(pot, *amount));
-    }
-}
-
-fn calculate_transactions(
+fn calculate_transactions<'a>(
     current_account_balance: i64,
     current_account_goal: i64,
-    pots: &[Pot],
-) -> Vec<Transaction> {
+    pots: &[&'a Pot],
+) -> Vec<Transaction<'a>> {
     let (withdrawals, remainder) = withdrawals(pots);
 
     let total_withdrawals: i64 = withdrawals.iter().map(|(_pot, diff)| diff).sum();
@@ -163,14 +73,17 @@ fn calculate_transactions(
 
 type Transaction<'a> = (&'a Pot, i64);
 
-fn withdrawals(pots: &[Pot]) -> (Vec<Transaction>, Vec<Transaction>) {
+fn withdrawals<'a>(pots: &[&'a Pot]) -> (Vec<Transaction<'a>>, Vec<Transaction<'a>>) {
     pots.iter()
         .filter(|pot| pot.diff() != 0)
-        .map(|pot| (pot, pot.diff()))
+        .map(|pot| (*pot, pot.diff()))
         .partition(|(_pot, diff)| diff < &0)
 }
 
-fn get_info(mut pots: Vec<Pot>, pot_names: &[String]) -> Vec<Pot> {
+fn sort_and_filter_pots<'a>(
+    pots: &'a [Pot],
+    pot_names: &'a [String],
+) -> Result<Vec<&'a Pot>, Error> {
     fn normalise(name: &str) -> String {
         let processed: String = name
             .chars()
@@ -180,23 +93,20 @@ fn get_info(mut pots: Vec<Pot>, pot_names: &[String]) -> Vec<Pot> {
         processed.trim().to_string()
     }
 
-    fn find_and_pop(pots: &mut Vec<Pot>, name: &str) -> Option<Pot> {
-        let index = pots
-            .iter()
-            .position(|pot| normalise(&pot.name) == normalise(name))?;
-        Some(pots.remove(index))
-    }
+    let mut active_pots: Vec<_> = pots.iter().filter(|pot| !pot.deleted).collect();
 
     let mut info = Vec::default();
 
     for name in pot_names {
-        let pot =
-            find_and_pop(&mut pots, name).unwrap_or_else(|| panic!("failed to find pot: {}", name));
+        let index = active_pots
+            .iter()
+            .position(|pot| normalise(&pot.name) == normalise(name))
+            .ok_or_else(|| Error::NotFound(format!("failed to find pot: {}", name)))?;
 
-        info.push(pot);
+        info.push(active_pots.remove(index));
     }
 
-    info
+    Ok(info)
 }
 
 trait PotExt {
@@ -226,6 +136,6 @@ mod tests {
          - savings
         "#;
 
-        let _: Config = serde_yaml::from_str(raw).unwrap();
+        let _: Sweep = serde_yaml::from_str(raw).unwrap();
     }
 }
