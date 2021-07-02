@@ -18,6 +18,7 @@ pub enum Error {
 
 pub(crate) trait Operation: DeserializeOwned {
     fn name(&self) -> &'static str;
+    fn account_id(&self) -> &str;
     fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Error>;
 }
 
@@ -32,6 +33,13 @@ impl Operation for Op {
     fn name(&self) -> &'static str {
         match self {
             Self::Sweep(op) => op.name(),
+            Self::Ratio(op) => op.name(),
+        }
+    }
+
+    fn account_id(&self) -> &str {
+        match self {
+            Self::Sweep(op) => op.account_id(),
             Self::Ratio(op) => op.name(),
         }
     }
@@ -68,6 +76,6 @@ mod tests {
               holiday: 1
     "#;
 
-        let _: Vec<Op> = serde_yaml::from_str(raw).unwrap();
+        serde_yaml::from_str::<Vec<Op>>(raw).unwrap();
     }
 }

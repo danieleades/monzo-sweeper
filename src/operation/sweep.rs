@@ -1,5 +1,5 @@
 use crate::{
-    operation::{util::find_current_account, Error, Operation},
+    operation::{Error, Operation},
     state::State,
     transactions::Ledger,
 };
@@ -11,7 +11,7 @@ use std::cmp::Ordering;
 #[serde(deny_unknown_fields)]
 pub struct Sweep {
     #[serde(default)]
-    pub current_account_id: Option<String>,
+    pub current_account_id: String,
     #[serde(default)]
     pub current_account_goal: i64,
     pub pots: Vec<String>,
@@ -22,18 +22,22 @@ impl Operation for Sweep {
         "Sweep"
     }
 
+    fn account_id(&self) -> &str {
+        &self.current_account_id
+    }
+
     fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Error> {
-        let account = find_current_account(&state.accounts, self.current_account_id.as_deref())?;
-        let balance = state.balance.get(&account.id).unwrap().balance();
-        let pots = sort_and_filter_pots(state.pots.get(&account.id).unwrap(), &self.pots)?;
+        let balance = state.balance.balance();
+        let pots = sort_and_filter_pots(&state.pots, &self.pots)?;
 
         let transactions =
             calculate_transactions(balance, self.current_account_goal * 100, pots.as_slice());
 
-        let mut ledger = Ledger::default();
-        transactions
-            .into_iter()
-            .for_each(|t| ledger.push(account, t));
+        let mut ledger = Ledger::new(&state.account);
+
+        for t in transactions {
+            ledger.push(t);
+        }
 
         Ok(ledger)
     }
@@ -136,6 +140,6 @@ mod tests {
          - savings
         "#;
 
-        let _: Sweep = serde_yaml::from_str(raw).unwrap();
+        serde_yaml::from_str::<Sweep>(raw).unwrap();
     }
 }

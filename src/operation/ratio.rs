@@ -1,5 +1,5 @@
 use crate::{
-    operation::{util::find_current_account, Error, Operation},
+    operation::{Error, Operation},
     state::State,
     transactions::Ledger,
 };
@@ -10,7 +10,7 @@ use std::collections::HashMap;
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Ratio {
     #[serde(default)]
-    current_account_id: Option<String>,
+    current_account_id: String,
     #[serde(default)]
     current_account_goal: Option<f32>,
     pots: HashMap<String, u32>,
@@ -21,26 +21,28 @@ impl Operation for Ratio {
         "Ratio"
     }
 
+    fn account_id(&self) -> &str {
+        &self.current_account_id
+    }
+
     #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
     fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Error> {
-        let account = find_current_account(&state.accounts, self.current_account_id.as_deref())?;
-
-        let spare_cash = state.balance.get(&account.id).unwrap().balance();
+        let spare_cash = state.balance.balance();
 
         let denominator: u32 = self.pots.values().sum();
 
         let deposits = self.pots.iter().map(|(name, numerator)| {
-            let pot = find_pot_by_name(state.pots.get(&account.id).unwrap(), name).unwrap();
+            let pot = find_pot_by_name(&state.pots, name).unwrap();
             let deposit: i64 = ((f64::from(*numerator)) / (f64::from(denominator))
                 * spare_cash as f64)
                 .floor() as i64;
             (pot, deposit)
         });
 
-        let mut ledger = Ledger::default();
+        let mut ledger = Ledger::new(&state.account);
 
         for t in deposits {
-            ledger.push(account, t);
+            ledger.push(t);
         }
 
         Ok(ledger)
@@ -65,6 +67,6 @@ mod tests {
           holiday: 1
         "#;
 
-        let _: Ratio = serde_yaml::from_str(raw).unwrap();
+        serde_yaml::from_str::<Ratio>(raw).unwrap();
     }
 }
