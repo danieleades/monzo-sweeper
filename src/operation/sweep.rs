@@ -4,10 +4,10 @@ use crate::{
     transactions::Ledger,
 };
 use monzo::Pot;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Sweep {
     #[serde(default)]

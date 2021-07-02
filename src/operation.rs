@@ -1,6 +1,6 @@
 use crate::{state::State, transactions::Ledger};
 use ratio::Ratio;
-use serde::{de::DeserializeOwned, Deserialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 mod sweep;
 pub use sweep::Sweep;
@@ -21,7 +21,7 @@ pub(crate) trait Operation: DeserializeOwned {
     fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Error>;
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Op {
     Sweep(Sweep),

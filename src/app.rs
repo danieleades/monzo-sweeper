@@ -1,57 +1,41 @@
 use crate::{
+    client::{Auth, Client},
     operation,
     operation::{Op, Operation},
     state,
     transactions::{Ledger, Transactions},
 };
-use clap::Clap;
 use futures_util::future::try_join_all;
-use monzo::{client::QuickClient, Account, Pot};
-use std::{
-    fs::File,
-    io,
-    path::{Path, PathBuf},
-};
+use monzo::{Account, Pot};
+
+static BIN_NAME: &str = std::env!("CARGO_PKG_NAME");
 
 #[derive(Debug, thiserror::Error)]
 #[error(transparent)]
 pub enum Error {
     Monzo(#[from] monzo::Error),
-    Io(#[from] io::Error),
-    Yaml(#[from] serde_yaml::Error),
     Operation(#[from] operation::Error),
 }
 
-#[derive(Debug, Clap)]
-struct Args {
-    /// The API key
-    #[clap(long, short = 't')]
-    access_token: String,
-
-    /// the path to the config file which defines the saving strategy
-    #[clap(long, short)]
-    config: PathBuf,
-}
-
 pub struct App {
-    client: QuickClient,
+    client: Client,
     operations: Vec<Op>,
 }
 
 impl App {
-    pub fn new(access_token: &str, config_path: &Path) -> Result<Self, Error> {
-        let client = QuickClient::new(access_token);
-        let operations = serde_yaml::from_reader(File::open(config_path)?)?;
+    pub fn from_config() -> Result<Self, confy::ConfyError> {
+        let auth: Auth = confy::load(BIN_NAME, "auth")?;
+        let client = auth.into();
+        let operations: Vec<Op> = confy::load(BIN_NAME, "config")?;
 
         Ok(Self { client, operations })
     }
 
-    pub fn from_args() -> Result<Self, Error> {
-        let args = Args::parse();
-        Self::new(&args.access_token, &args.config)
+    pub async fn save_auth(&self) -> Result<(), confy::ConfyError> {
+        confy::store(BIN_NAME, "auth", self.client.auth().await)
     }
 
-    pub async fn run(&self) -> Result<(), Error> {
+    pub async fn run(&self) -> Result<(), operation::Error> {
         for op in &self.operations {
             let state = state::get(&self.client).await?;
             println!("Running {}", op.name());
@@ -68,10 +52,7 @@ impl App {
     }
 }
 
-async fn process_transactions(
-    client: &QuickClient,
-    ledger: Ledger<'_>,
-) -> Result<(), monzo::Error> {
+async fn process_transactions(client: &Client, ledger: Ledger<'_>) -> Result<(), monzo::Error> {
     try_join_all(
         ledger
             .transactions
@@ -84,7 +65,7 @@ async fn process_transactions(
 }
 
 async fn process_account<'a>(
-    client: &'a QuickClient,
+    client: &'a Client,
     account: &Account,
     transactions: Transactions<'a>,
 ) -> Result<(), monzo::Error> {
@@ -92,7 +73,7 @@ async fn process_account<'a>(
         transactions
             .withdrawals
             .into_iter()
-            .map(|(pot, amount)| client.withdraw_from_pot(&pot.id, &account.id, amount.into())),
+            .map(|(pot, amount)| client.withdraw_from_pot(&pot.id, &account.id, amount)),
     )
     .await?;
 
@@ -100,7 +81,7 @@ async fn process_account<'a>(
         transactions
             .deposits
             .into_iter()
-            .map(|(pot, amount)| client.deposit_into_pot(&pot.id, &account.id, amount.into())),
+            .map(|(pot, amount)| client.deposit_into_pot(&pot.id, &account.id, amount)),
     )
     .await?;
 
