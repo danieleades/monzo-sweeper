@@ -8,11 +8,9 @@ edition = "2018"
 [dependencies]
 clap = { version = "3.0.0-rc.8", features = ["derive"] }
 confy = { git = "https://github.com/rust-cli/confy.git", rev="664992aecd97b4af0eda8d9d2825885662e1c6b4", features = ["yaml_conf"], default_features = false}
-dirs = "3.0.2"
 futures-util = "0.3.15"
 log = "0.4.14"
 monzo-lib = "0.3.0"
-pretty_env_logger = "0.4.0"
 rusty-money = {version = "0.4.1", features = ["iso"] }
 serde = { version = "1.0.126", features = ["derive"] }
 serde_yaml = "0.8.17"
