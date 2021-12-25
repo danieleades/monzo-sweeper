@@ -1,4 +1,4 @@
-use tracing_subscriber::EnvFilter;
+use tracing_subscriber::filter::EnvFilter;
 
 pub fn set_up(verbosity: u8) {
     let formatter = tracing_subscriber::fmt::format::debug_fn(|writer, _field, value| {
