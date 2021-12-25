@@ -1,7 +1,7 @@
 use crate::{
     operation::{Error, Operation},
     state::State,
-    transactions::Ledger,
+    transactions::Transactions,
 };
 use monzo::Pot;
 use serde::{Deserialize, Serialize};
@@ -26,20 +26,14 @@ impl Operation for Sweep {
         &self.current_account_id
     }
 
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Error> {
-        let balance = state.balance.balance();
+    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions, Error> {
+        let balance = state.balance.balance;
         let pots = sort_and_filter_pots(&state.pots, &self.pots)?;
 
         let transactions =
             calculate_transactions(balance, self.current_account_goal * 100, pots.as_slice());
 
-        let mut ledger = Ledger::new(&state.account);
-
-        for t in transactions {
-            ledger.push(t);
-        }
-
-        Ok(ledger)
+        Ok(transactions.into_iter().collect())
     }
 }
 

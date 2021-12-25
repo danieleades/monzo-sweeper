@@ -1,11 +1,10 @@
-use crate::{state::State, transactions::Ledger};
+use crate::{state::State, transactions::Transactions};
 use ratio::Ratio;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 mod sweep;
 pub use sweep::Sweep;
 mod ratio;
-mod util;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -19,7 +18,7 @@ pub enum Error {
 pub(crate) trait Operation: DeserializeOwned {
     fn name(&self) -> &'static str;
     fn account_id(&self) -> &str;
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Error>;
+    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions, Error>;
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -44,7 +43,7 @@ impl Operation for Op {
         }
     }
 
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Error> {
+    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions, Error> {
         match self {
             Self::Sweep(op) => op.transactions(state),
             Self::Ratio(op) => op.transactions(state),

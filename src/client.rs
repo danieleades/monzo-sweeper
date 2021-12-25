@@ -1,4 +1,4 @@
-use monzo::{inner_client::Quick, Account, Balance, Pot};
+use monzo::{inner_client::Quick, Balance, Pot};
 use serde::{Deserialize, Serialize};
 
 mod auto_refresh;
@@ -48,12 +48,12 @@ impl Client {
         }
     }
 
-    pub async fn accounts(&self) -> monzo::Result<Vec<Account>> {
-        match self {
-            Self::Quick(client) => client.accounts().await,
-            Self::AutoRefresh(client) => client.accounts().await,
-        }
-    }
+    //     pub async fn accounts(&self) -> monzo::Result<Vec<Account>> {
+    // match self {
+    // Self::Quick(client) => client.accounts().await,
+    // Self::AutoRefresh(client) => client.accounts().await,
+    // }
+    // }
 
     pub async fn balance(&self, account_id: &str) -> monzo::Result<Balance> {
         match self {

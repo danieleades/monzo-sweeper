@@ -1,6 +1,6 @@
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
 
 name: Code Coverage
@@ -24,9 +24,8 @@ jobs:
       - name: Run cargo-tarpaulin
         uses: actions-rs/tarpaulin@v0.1
         with:
-          args: '--all-features'
+          args: --all-features --tests --doc
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1.0.4
-        #with:
-          #token: ${{secrets.CODECOV_TOKEN}}
+

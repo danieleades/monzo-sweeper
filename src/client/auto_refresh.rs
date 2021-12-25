@@ -1,4 +1,4 @@
-use monzo::{inner_client::Refreshable, Account, Balance, Pot};
+use monzo::{inner_client::Refreshable, Balance, Pot};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use tokio::sync::{Mutex, RwLock};
@@ -27,11 +27,6 @@ impl Client {
             client_secret: client.client_secret().to_string(),
             refresh_token: client.refresh_token().to_string(),
         }
-    }
-
-    pub async fn accounts(&self) -> monzo::Result<Vec<Account>> {
-        self.with_retry(|| async { self.client.read().await.accounts().await })
-            .await
     }
 
     pub async fn balance(&self, account_id: &str) -> monzo::Result<Balance> {
@@ -84,7 +79,7 @@ impl Client {
         let response = f().await;
 
         if response.is_err() {
-            println!("attempting refresh");
+            tracing::warn!("authentication failed, access token may have expired");
             self.refresh_auth().await?;
             return f().await;
         }
@@ -93,15 +88,19 @@ impl Client {
     }
 
     async fn refresh_auth(&self) -> monzo::Result<()> {
-        let _refresh_lock = match self.refresh_lock.try_lock() {
-            // no other task is trying to refresh right now
-            Ok(lock) => lock,
+        tracing::info!("attempting access token refresh");
 
-            // Another task is already handling the refresh
-            Err(_) => return Ok(()),
+        let _refresh_lock = if let Ok(lock) = self.refresh_lock.try_lock() {
+            lock
+        } else {
+            tracing::debug!("another thread is already refreshing auth");
+            return Ok(());
         };
 
-        self.client.write().await.refresh_auth().await
+        self.client.write().await.refresh_auth().await?;
+        tracing::info!("access token refreshed");
+
+        Ok(())
     }
 }
 

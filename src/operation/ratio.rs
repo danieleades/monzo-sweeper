@@ -1,7 +1,7 @@
 use crate::{
     operation::{Error, Operation},
     state::State,
-    transactions::Ledger,
+    transactions::Transactions,
 };
 use monzo::Pot;
 use serde::{Deserialize, Serialize};
@@ -26,8 +26,8 @@ impl Operation for Ratio {
     }
 
     #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Error> {
-        let spare_cash = state.balance.balance();
+    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions, Error> {
+        let spare_cash = state.balance.balance;
 
         let denominator: u32 = self.pots.values().sum();
 
@@ -39,13 +39,7 @@ impl Operation for Ratio {
             (pot, deposit)
         });
 
-        let mut ledger = Ledger::new(&state.account);
-
-        for t in deposits {
-            ledger.push(t);
-        }
-
-        Ok(ledger)
+        Ok(deposits.collect())
     }
 }
 
