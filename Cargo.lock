@@ -524,9 +524,9 @@ dependencies = [
 
 [[package]]
 name = "monzo-lib"
-version = "0.3.0"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aec416f7b73c269205ca88c07ec87eb5376c46ecb68aa00352b66d674d8daa0d"
+checksum = "637dc3f7d2efceff533f718e025497c9adf9f74fe69ced6c3240f61b9a7d3d4b"
 dependencies = [
  "async-trait",
  "chrono",
