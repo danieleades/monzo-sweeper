@@ -1,19 +1,5 @@
-use monzo::{Account, Pot};
-use std::{collections::HashMap, convert::TryInto};
-
-#[derive(Debug, Default)]
-pub struct Ledger<'a> {
-    pub transactions: HashMap<&'a Account, Transactions<'a>>,
-}
-
-impl<'a> Ledger<'a> {
-    pub fn push(&mut self, account: &'a Account, transaction: (&'a Pot, i64)) {
-        self.transactions
-            .entry(account)
-            .or_default()
-            .push(transaction);
-    }
-}
+use monzo::Pot;
+use std::{convert::TryInto, iter::FromIterator};
 
 #[derive(Debug, Default)]
 pub struct Transactions<'a> {
@@ -30,6 +16,10 @@ impl<'a> Transactions<'a> {
         } else {
             self.deposits.push((pot, amount.try_into().unwrap()));
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.withdrawals.is_empty() && self.deposits.is_empty()
     }
 }
 
@@ -49,5 +39,15 @@ impl<'a> IntoIterator for &'a Transactions<'a> {
             .map(|(pot, amount)| (*pot, i64::from(*amount)));
 
         Box::new(withdrawals.chain(deposits))
+    }
+}
+
+impl<'a> FromIterator<(&'a Pot, i64)> for Transactions<'a> {
+    fn from_iter<T: IntoIterator<Item = (&'a Pot, i64)>>(iter: T) -> Self {
+        let mut transactions = Self::default();
+        for t in iter {
+            transactions.push(t);
+        }
+        transactions
     }
 }

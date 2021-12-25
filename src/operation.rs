@@ -1,11 +1,10 @@
-use crate::{state::State, transactions::Ledger};
+use crate::{state::State, transactions::Transactions};
 use ratio::Ratio;
-use serde::{de::DeserializeOwned, Deserialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 mod sweep;
 pub use sweep::Sweep;
 mod ratio;
-mod util;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -18,10 +17,11 @@ pub enum Error {
 
 pub(crate) trait Operation: DeserializeOwned {
     fn name(&self) -> &'static str;
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Error>;
+    fn account_id(&self) -> &str;
+    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions, Error>;
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Op {
     Sweep(Sweep),
@@ -36,7 +36,14 @@ impl Operation for Op {
         }
     }
 
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Error> {
+    fn account_id(&self) -> &str {
+        match self {
+            Self::Sweep(op) => op.account_id(),
+            Self::Ratio(op) => op.name(),
+        }
+    }
+
+    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions, Error> {
         match self {
             Self::Sweep(op) => op.transactions(state),
             Self::Ratio(op) => op.transactions(state),
@@ -68,6 +75,6 @@ mod tests {
               holiday: 1
     "#;
 
-        let _: Vec<Op> = serde_yaml::from_str(raw).unwrap();
+        serde_yaml::from_str::<Vec<Op>>(raw).unwrap();
     }
 }

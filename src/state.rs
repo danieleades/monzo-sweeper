@@ -1,33 +1,21 @@
-use futures_util::future::{ready, try_join3, try_join_all};
-use monzo::{client::QuickClient, Account, Balance, Pot};
-use std::collections::HashMap;
+use futures_util::future::try_join;
+use monzo::{Balance, Pot};
+use tracing::{event, instrument, Level};
+
+use crate::client::Client;
 
 pub struct State {
-    pub accounts: Vec<Account>,
-    pub balance: HashMap<String, Balance>,
-    pub pots: HashMap<String, Vec<Pot>>,
+    pub balance: Balance,
+    pub pots: Vec<Pot>,
 }
 
-pub async fn get(client: &QuickClient) -> Result<State, monzo::Error> {
-    let accounts = client.accounts().await?;
+#[instrument(name = "get current state", skip(client))]
+pub async fn get(client: &Client, account_id: &str) -> Result<State, monzo::Error> {
+    let balance_fut = client.balance(account_id);
+    let pots_fut = client.pots(account_id);
+    let (balance, pots) = try_join(balance_fut, pots_fut).await?;
 
-    let account_data = try_join_all(accounts.iter().map(|account| {
-        let balance = client.balance(&account.id);
-        let pots = client.pots(&account.id);
-        try_join3(ready(Ok(account.id.clone())), balance, pots)
-    }))
-    .await?;
+    event!(Level::INFO, "recieved account data");
 
-    let mut balance_map = HashMap::default();
-    let mut pots_map = HashMap::default();
-    for (account_id, balance, pots) in account_data {
-        balance_map.insert(account_id.clone(), balance);
-        pots_map.insert(account_id, pots);
-    }
-
-    Ok(State {
-        accounts,
-        balance: balance_map,
-        pots: pots_map,
-    })
+    Ok(State { balance, pots })
 }
