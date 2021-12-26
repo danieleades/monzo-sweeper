@@ -1,4 +1,4 @@
-use crate::{state::State, transactions::Transactions};
+use crate::{client::State, transactions::Transactions};
 use ratio::Ratio;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
@@ -15,7 +15,7 @@ pub enum Error {
     NotFound(String),
 }
 
-pub(crate) trait Operation: DeserializeOwned {
+pub trait Operation: DeserializeOwned {
     fn name(&self) -> &'static str;
     fn account_id(&self) -> &str;
     fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions, Error>;

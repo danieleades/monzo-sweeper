@@ -1,6 +1,8 @@
-use crate::{client::Auth, operation::Op};
+use monz0_lib::Auth;
 
-static BIN_NAME: &str = std::env!("CARGO_PKG_NAME");
+use crate::operation::Op;
+
+pub static BIN_NAME: &str = std::env!("CARGO_PKG_NAME");
 
 pub fn operations() -> Result<Vec<Op>, confy::ConfyError> {
     confy::load(BIN_NAME, "config")

@@ -1,6 +1,6 @@
 use crate::{
+    client::State,
     operation::{Error, Operation},
-    state::State,
     transactions::Transactions,
 };
 use monzo::Pot;
@@ -26,7 +26,7 @@ impl Operation for Sweep {
         &self.current_account_id
     }
 
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions, Error> {
+    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions<'a>, Error> {
         let balance = state.balance.balance;
         let pots = sort_and_filter_pots(&state.pots, &self.pots)?;
 

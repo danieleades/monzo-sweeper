@@ -1,10 +1,19 @@
+use futures_util::future::{try_join, try_join_all};
 use monzo::{inner_client::Quick, Balance, Pot};
 use serde::{Deserialize, Serialize};
+use tracing::{instrument, Level};
+
+use crate::transactions::Transactions;
 
 mod auto_refresh;
 
+pub struct State {
+    pub balance: Balance,
+    pub pots: Vec<Pot>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
-pub struct BasicAuth {
+struct BasicAuth {
     access_token: String,
 }
 
@@ -39,6 +48,7 @@ impl From<Auth> for Client {
 }
 
 impl Client {
+    #[instrument(skip(self))]
     pub async fn auth(&self) -> Auth {
         match self {
             Client::Quick(client) => Auth::Basic {
@@ -48,28 +58,24 @@ impl Client {
         }
     }
 
-    //     pub async fn accounts(&self) -> monzo::Result<Vec<Account>> {
-    // match self {
-    // Self::Quick(client) => client.accounts().await,
-    // Self::AutoRefresh(client) => client.accounts().await,
-    // }
-    // }
-
-    pub async fn balance(&self, account_id: &str) -> monzo::Result<Balance> {
+    #[instrument(skip(self))]
+    async fn balance(&self, account_id: &str) -> monzo::Result<Balance> {
         match self {
             Self::Quick(client) => client.balance(account_id).await,
             Self::AutoRefresh(client) => client.balance(account_id).await,
         }
     }
 
-    pub async fn pots(&self, account_id: &str) -> monzo::Result<Vec<Pot>> {
+    #[instrument(skip(self))]
+    async fn pots(&self, account_id: &str) -> monzo::Result<Vec<Pot>> {
         match self {
             Self::Quick(client) => client.pots(account_id).await,
             Self::AutoRefresh(client) => client.pots(account_id).await,
         }
     }
 
-    pub async fn withdraw_from_pot(
+    #[instrument(skip(self))]
+    async fn withdraw_from_pot(
         &self,
         pot_id: &str,
         destination_account_id: &str,
@@ -89,7 +95,8 @@ impl Client {
         }
     }
 
-    pub async fn deposit_into_pot(
+    #[instrument(skip(self))]
+    async fn deposit_into_pot(
         &self,
         pot_id: &str,
         source_account_id: &str,
@@ -107,5 +114,45 @@ impl Client {
                     .await
             }
         }
+    }
+
+    #[instrument(skip(self))]
+    pub async fn state(&self, account_id: &str) -> Result<State, monzo::Error> {
+        let balance_fut = self.balance(account_id);
+        let pots_fut = self.pots(account_id);
+        let (balance, pots) = try_join(balance_fut, pots_fut).await?;
+
+        tracing::event!(Level::INFO, "recieved account data");
+
+        Ok(State { balance, pots })
+    }
+
+    #[instrument(skip(self))]
+    pub async fn process_transactions(
+        &self,
+        transactions: Transactions<'_>,
+    ) -> Result<(), monzo::Error> {
+        let withdrawals = transactions.withdrawals;
+        let deposits = transactions.deposits;
+
+        try_join_all(
+            withdrawals.into_iter().map(|(pot, amount)| {
+                self.withdraw_from_pot(&pot.id, &pot.current_account_id, amount)
+            }),
+        )
+        .await?;
+
+        tracing::event!(Level::DEBUG, "processed withdrawals");
+
+        try_join_all(
+            deposits.into_iter().map(|(pot, amount)| {
+                self.deposit_into_pot(&pot.id, &pot.current_account_id, amount)
+            }),
+        )
+        .await?;
+
+        tracing::event!(Level::DEBUG, "processed deposits");
+
+        Ok(())
     }
 }

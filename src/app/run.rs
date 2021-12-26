@@ -1,29 +1,38 @@
 use clap::Parser;
-use futures_util::future::try_join_all;
+use monz0_lib::{Client, Transactions};
 use monzo::Pot;
-use tracing::{instrument, Level};
+use tracing::instrument;
 
-use crate::{
-    client::Client, config, operation::Operation, state, transactions::Transactions, Error,
-};
+use crate::{config, operation::Operation};
 
 #[derive(Debug, Parser, Clone, Copy)]
-pub struct Run;
+pub struct Run {
+    #[clap(long)]
+    dry_run: bool,
+}
 
 impl Run {
-    pub async fn run(self) -> Result<(), Error> {
-        let client = config::auth()?.into();
+    #[instrument(skip(self))]
+    pub async fn run(self) -> anyhow::Result<()> {
+        let client: Client = config::auth()?.into();
         let operations = config::operations()?;
 
+        tracing::info!("config: {:#?}", &self);
+        tracing::info!("operations: {:#?}", &operations);
+
         for op in &operations {
-            let state = state::get(&client, op.account_id()).await?;
+            let state = client.state(op.account_id()).await?;
             println!("Running {}, account: {}", op.name(), op.account_id());
             let transactions = op.transactions(&state)?;
-            if transactions.is_empty() {
+
+            if self.dry_run {
+                println!("{}", transactions_summary(op.account_id(), &transactions));
+                println!("skipping execution ('dry-run' = true)");
+            } else if transactions.is_empty() {
                 println!("nothing to do ...");
             } else {
                 println!("{}", transactions_summary(op.account_id(), &transactions));
-                process_transactions(&client, op.account_id(), transactions).await?;
+                client.process_transactions(transactions).await?;
             }
         }
 
@@ -31,36 +40,6 @@ impl Run {
 
         Ok(())
     }
-}
-
-#[instrument(skip(client, account_id, transactions))]
-async fn process_transactions<'a>(
-    client: &'a Client,
-    account_id: &str,
-    transactions: Transactions<'a>,
-) -> Result<(), monzo::Error> {
-    let withdrawals = transactions.withdrawals;
-    let deposits = transactions.deposits;
-
-    try_join_all(
-        withdrawals
-            .into_iter()
-            .map(|(pot, amount)| client.withdraw_from_pot(&pot.id, account_id, amount)),
-    )
-    .await?;
-
-    tracing::event!(Level::DEBUG, "processed withdrawals");
-
-    try_join_all(
-        deposits
-            .into_iter()
-            .map(|(pot, amount)| client.deposit_into_pot(&pot.id, account_id, amount)),
-    )
-    .await?;
-
-    tracing::event!(Level::DEBUG, "processed deposits");
-
-    Ok(())
 }
 
 fn transactions_summary(account_id: &str, transactions: &Transactions) -> String {

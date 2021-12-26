@@ -6,11 +6,11 @@ use show::Show;
 mod run;
 use run::Run;
 
-use crate::{logging, Error};
+use crate::logging;
 
 #[derive(Debug, Parser, Clone, Copy)]
 pub struct App {
-    #[clap(short, long, parse(from_occurrences))]
+    #[clap(short, long, parse(from_occurrences), global = true)]
     pub verbose: u8,
 
     #[clap(subcommand)]
@@ -34,9 +34,9 @@ impl App {
         Self::parse()
     }
 
-    pub async fn run(self) -> Result<(), Error> {
+    pub async fn run(self) -> anyhow::Result<()> {
         logging::set_up(self.verbose);
-
+        tracing::info!("logging configured");
         match self.subcommand.unwrap_or_default() {
             Subcommand::Show(_show) => Show::run()?,
             Subcommand::Run(run) => run.run().await?,

@@ -1,6 +1,6 @@
 use crate::{
+    client::State,
     operation::{Error, Operation},
-    state::State,
     transactions::Transactions,
 };
 use monzo::Pot;
