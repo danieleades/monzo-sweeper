@@ -14,7 +14,6 @@ clap = { version = "3.0.0-rc.9", features = ["derive"] }
 anyhow = "1.0.52"
 confy = { git = "https://github.com/rust-cli/confy.git", rev="664992aecd97b4af0eda8d9d2825885662e1c6b4", features = ["yaml_conf"], default_features = false}
 monz0-lib = { path = "./monz0-lib" }
-monzo-lib = "0.4.3"
 rusty-money = {version = "0.4.1", features = ["iso"] }
 tokio = { version = "1.6.1", features = ["rt-multi-thread", "macros", "sync"] }
 tracing = "0.1.26"

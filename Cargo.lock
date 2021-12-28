@@ -536,7 +536,6 @@ dependencies = [
  "clap",
  "confy",
  "monz0-lib",
- "monzo-lib",
  "rusty-money",
  "serde",
  "serde_yaml",

@@ -1,5 +1,6 @@
-use monzo::Pot;
 use std::{collections::HashMap, iter::FromIterator};
+
+use monzo::Pot;
 
 /// Represents a ledger of transactions (deposits and withdrawals) associated
 /// with their respective accounts

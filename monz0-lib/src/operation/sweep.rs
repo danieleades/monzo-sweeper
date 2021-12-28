@@ -1,7 +1,9 @@
-use crate::{client::State, operation::Operation, transactions::Ledger};
+use std::cmp::Ordering;
+
 use monzo::Pot;
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
+
+use crate::{client::State, operation::Operation, transactions::Ledger};
 
 #[derive(Debug, thiserror::Error)]
 #[error("not found: {0}")]

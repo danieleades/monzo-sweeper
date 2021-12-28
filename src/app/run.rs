@@ -1,6 +1,5 @@
 use clap::Parser;
-use monz0_lib::{Client, Ledger};
-use monzo::Pot;
+use monz0_lib::{Client, Ledger, Pot};
 use tracing::instrument;
 
 use crate::config;

@@ -14,6 +14,6 @@ pub mod operation;
 pub use operation::Operation;
 mod transactions;
 
-pub use transactions::{Ledger, Transactions};
-
 pub use client::{Auth, Client, State};
+pub use monzo::Pot;
+pub use transactions::{Ledger, Transactions};
