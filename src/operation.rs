@@ -1,52 +1,25 @@
-use crate::{state::State, transactions::Transactions};
-use ratio::Ratio;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-
-mod sweep;
-pub use sweep::Sweep;
-mod ratio;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error(transparent)]
-    Monzo(#[from] monzo::Error),
-
-    #[error("not found: {0}")]
-    NotFound(String),
-}
-
-pub(crate) trait Operation: DeserializeOwned {
-    fn name(&self) -> &'static str;
-    fn account_id(&self) -> &str;
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions, Error>;
-}
+use monz0_lib::{operation::Sweep, Ledger, Operation, State};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Op {
     Sweep(Sweep),
-    Ratio(Ratio),
+    // Ratio(Ratio),
 }
 
-impl Operation for Op {
-    fn name(&self) -> &'static str {
+impl Op {
+    pub fn name(&self) -> &'static str {
         match self {
-            Self::Sweep(op) => op.name(),
-            Self::Ratio(op) => op.name(),
+            Self::Sweep(_) => Sweep::NAME,
+            // Self::Ratio(op) => op.name(),
         }
     }
 
-    fn account_id(&self) -> &str {
+    pub fn transactions<'a>(&'a self, state: &'a State) -> anyhow::Result<Ledger> {
         match self {
-            Self::Sweep(op) => op.account_id(),
-            Self::Ratio(op) => op.name(),
-        }
-    }
-
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions, Error> {
-        match self {
-            Self::Sweep(op) => op.transactions(state),
-            Self::Ratio(op) => op.transactions(state),
+            Self::Sweep(op) => Ok(op.transactions(state)?),
+            // Self::Ratio(op) => op.transactions(state),
         }
     }
 }
@@ -57,23 +30,30 @@ mod tests {
 
     #[test]
     fn deserialise_yaml() {
+        //     let raw = r#"
+        //     - sweep: current_account_goal: 10000
+
+        //         pots:
+        //         - bills
+        //         - lottery
+        //         - allowance
+        //         - student loan
+        //         - savings
+
+        //     - ratio: current_account_goal: 10000 pots: savings: 2 holiday: 1
+        // "#;
+
         let raw = r#"
-        - sweep:
-            current_account_goal: 10000
+    - sweep:
+        current_account_goal: 10000
 
-            pots:
-            - bills
-            - lottery
-            - allowance
-            - student loan
-            - savings
-
-        - ratio:
-            current_account_goal: 10000
-            pots:
-              savings: 2
-              holiday: 1
-    "#;
+        pots:
+        - bills
+        - lottery
+        - allowance
+        - student loan
+        - savings
+"#;
 
         serde_yaml::from_str::<Vec<Op>>(raw).unwrap();
     }

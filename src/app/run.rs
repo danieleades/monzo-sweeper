@@ -1,29 +1,37 @@
 use clap::Parser;
-use futures_util::future::try_join_all;
-use monzo::Pot;
-use tracing::{instrument, Level};
+use monz0_lib::{Client, Ledger, Pot};
+use tracing::instrument;
 
-use crate::{
-    client::Client, config, operation::Operation, state, transactions::Transactions, Error,
-};
+use crate::config;
 
 #[derive(Debug, Parser, Clone, Copy)]
-pub struct Run;
+pub struct Run {
+    #[clap(long)]
+    dry_run: bool,
+}
 
 impl Run {
-    pub async fn run(self) -> Result<(), Error> {
-        let client = config::auth()?.into();
+    #[instrument(skip(self))]
+    pub async fn run(self) -> anyhow::Result<()> {
+        let client: Client = config::auth()?.into();
         let operations = config::operations()?;
 
+        tracing::info!("config: {:#?}", &self);
+        tracing::info!("operations: {:#?}", &operations);
+
         for op in &operations {
-            let state = state::get(&client, op.account_id()).await?;
-            println!("Running {}, account: {}", op.name(), op.account_id());
-            let transactions = op.transactions(&state)?;
-            if transactions.is_empty() {
+            let state = client.state().await?;
+            println!("Running {}", op.name());
+            let ledger = op.transactions(&state)?;
+
+            if self.dry_run {
+                println!("{}", transactions_summary(&ledger));
+                println!("skipping execution ('dry-run' = true)");
+            } else if ledger.is_empty() {
                 println!("nothing to do ...");
             } else {
-                println!("{}", transactions_summary(op.account_id(), &transactions));
-                process_transactions(&client, op.account_id(), transactions).await?;
+                println!("{}", transactions_summary(&ledger));
+                client.process_ledger(&ledger).await?;
             }
         }
 
@@ -33,49 +41,22 @@ impl Run {
     }
 }
 
-#[instrument(skip(client, account_id, transactions))]
-async fn process_transactions<'a>(
-    client: &'a Client,
-    account_id: &str,
-    transactions: Transactions<'a>,
-) -> Result<(), monzo::Error> {
-    let withdrawals = transactions.withdrawals;
-    let deposits = transactions.deposits;
-
-    try_join_all(
-        withdrawals
-            .into_iter()
-            .map(|(pot, amount)| client.withdraw_from_pot(&pot.id, account_id, amount)),
-    )
-    .await?;
-
-    tracing::event!(Level::DEBUG, "processed withdrawals");
-
-    try_join_all(
-        deposits
-            .into_iter()
-            .map(|(pot, amount)| client.deposit_into_pot(&pot.id, account_id, amount)),
-    )
-    .await?;
-
-    tracing::event!(Level::DEBUG, "processed deposits");
-
-    Ok(())
-}
-
-fn transactions_summary(account_id: &str, transactions: &Transactions) -> String {
+fn transactions_summary(ledger: &Ledger) -> String {
     let mut summary = String::new();
 
-    summary += &format!("{}:\n", account_id);
-    for (pot, amount) in transactions {
-        summary += &format!("{}: {}\n", &pot.name, &format_currency(pot, amount));
+    for (account_id, transactions) in ledger {
+        summary += &format!("{}:\n", account_id);
+
+        for (pot, amount) in transactions {
+            summary += &format!("{}: {}\n", &pot.name, &format_currency(pot, amount));
+        }
     }
 
     summary
 }
 
 fn format_currency(pot: &Pot, amount: i64) -> String {
-    let currency = rusty_money::iso::find(&pot.currency).unwrap();
+    let currency = rusty_money::iso::find(&pot.currency).expect("unexpected currency ISO code");
     let money = rusty_money::Money::from_minor(amount, currency);
     format!("{}", money)
 }

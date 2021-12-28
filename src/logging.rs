@@ -1,12 +1,14 @@
 use tracing_subscriber::filter::EnvFilter;
 
+use crate::config;
+
 pub fn set_up(verbosity: u8) {
     let formatter = tracing_subscriber::fmt::format::debug_fn(|writer, _field, value| {
         write!(writer, "{:?}", value)
     });
 
     let filter = EnvFilter::try_new("warn").unwrap().add_directive(
-        format!("monzo_sweeper={}", max_level(verbosity))
+        format!("{}={}", config::BIN_NAME, max_level(verbosity))
             .parse()
             .unwrap(),
     );

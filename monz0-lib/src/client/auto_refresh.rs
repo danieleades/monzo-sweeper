@@ -1,6 +1,7 @@
-use monzo::{inner_client::Refreshable, Balance, Pot};
-use serde::{Deserialize, Serialize};
 use std::future::Future;
+
+use monzo::{inner_client::Refreshable, Account, Balance, Pot};
+use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, RwLock};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,6 +28,11 @@ impl Client {
             client_secret: client.client_secret().to_string(),
             refresh_token: client.refresh_token().to_string(),
         }
+    }
+
+    pub async fn accounts(&self) -> monzo::Result<Vec<Account>> {
+        self.with_retry(|| async { self.client.read().await.accounts().await })
+            .await
     }
 
     pub async fn balance(&self, account_id: &str) -> monzo::Result<Balance> {
