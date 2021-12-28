@@ -3,8 +3,10 @@ use std::cmp::Ordering;
 use monzo::Pot;
 use serde::{Deserialize, Serialize};
 
-use crate::{client::State, operation::Operation, transactions::Ledger};
+use crate::{operation::Operation, transactions::Ledger, State};
 
+/// a [`NotFoundError`] is returned when an account or pot configured in the
+/// [`Sweep`] operation cannot be found in the monzo [`State`]
 #[derive(Debug, thiserror::Error)]
 #[error("not found: {0}")]
 pub struct NotFoundError(String);
@@ -18,18 +20,18 @@ pub struct NotFoundError(String);
 pub struct Sweep {
     /// The ID of the account to be swept
     #[serde(default)]
-    pub current_account_id: String,
+    current_account_id: String,
 
     /// The goal amount of the current account itself
     #[serde(default)]
-    pub current_account_goal: i64,
+    current_account_goal: i64,
 
     /// A list of names of pots that should be swept, in order
     ///
     /// When determining the pots, the names are normalised by removing emojis,
     /// normalising capitalisation, and then stripping any leading or trailing
     /// whitespace.
-    pub pots: Vec<String>,
+    pots: Vec<String>,
 }
 
 impl Operation for Sweep {

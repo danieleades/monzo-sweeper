@@ -1,8 +1,10 @@
 //! Operations on Monzo pots
 
-use crate::{client::State, transactions::Ledger};
+use crate::{transactions::Ledger, State};
 
-mod sweep;
+/// 'Sweep' operation
+pub mod sweep;
+#[doc(inline)]
 pub use sweep::Sweep;
 // mod ratio;
 // pub use ratio::Ratio;

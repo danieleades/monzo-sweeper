@@ -1,30 +1,15 @@
-use std::collections::HashMap;
-
 use futures_util::future::{try_join, try_join_all};
 use monzo::{inner_client::Quick, Balance, Pot};
 use serde::{Deserialize, Serialize};
 use tracing::{instrument, Level};
 
-use crate::{transactions::Transactions, Ledger};
+use crate::{
+    state::{self, State},
+    transactions::Transactions,
+    Ledger,
+};
 
 mod auto_refresh;
-
-/// The balance and pots associated with respective account ids
-#[derive(Debug, Default)]
-pub struct State {
-    /// A map from account IDs to their respective [`AccountState`]s
-    pub accounts: HashMap<String, AccountState>,
-}
-
-/// The balance and pots associated with an account
-#[derive(Debug)]
-pub struct AccountState {
-    /// the current balance of the account
-    pub balance: Balance,
-
-    /// the pots associated with an account
-    pub pots: Vec<Pot>,
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct BasicAuth {
@@ -162,14 +147,14 @@ impl Client {
 
     /// Retrieve the current state of the given account
     #[instrument(skip(self))]
-    pub async fn account_state(&self, account_id: &str) -> Result<AccountState, monzo::Error> {
+    async fn account_state(&self, account_id: &str) -> Result<state::Account, monzo::Error> {
         let balance_fut = self.balance(account_id);
         let pots_fut = self.pots(account_id);
         let (balance, pots) = try_join(balance_fut, pots_fut).await?;
 
         tracing::event!(Level::INFO, "recieved account data");
 
-        Ok(AccountState { balance, pots })
+        Ok(state::Account { balance, pots })
     }
 
     /// Retrieve the current state of the given account
