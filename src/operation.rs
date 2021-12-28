@@ -30,23 +30,30 @@ mod tests {
 
     #[test]
     fn deserialise_yaml() {
+        //     let raw = r#"
+        //     - sweep: current_account_goal: 10000
+
+        //         pots:
+        //         - bills
+        //         - lottery
+        //         - allowance
+        //         - student loan
+        //         - savings
+
+        //     - ratio: current_account_goal: 10000 pots: savings: 2 holiday: 1
+        // "#;
+
         let raw = r#"
-        - sweep:
-            current_account_goal: 10000
+    - sweep:
+        current_account_goal: 10000
 
-            pots:
-            - bills
-            - lottery
-            - allowance
-            - student loan
-            - savings
-
-        - ratio:
-            current_account_goal: 10000
-            pots:
-              savings: 2
-              holiday: 1
-    "#;
+        pots:
+        - bills
+        - lottery
+        - allowance
+        - student loan
+        - savings
+"#;
 
         serde_yaml::from_str::<Vec<Op>>(raw).unwrap();
     }
