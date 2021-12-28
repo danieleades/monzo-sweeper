@@ -1,34 +1,50 @@
-use crate::{
-    client::State,
-    operation::{Error, Operation},
-    transactions::Transactions,
-};
+use crate::{client::State, operation::Operation, transactions::Ledger};
 use monzo::Pot;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
+#[derive(Debug, thiserror::Error)]
+#[error("not found: {0}")]
+pub struct NotFoundError(String);
+
+/// A [`Sweep`] operation moves through a list of pots, sweeping any extra money
+/// above the goal amount into the next pot down the list.
+///
+/// It is an error to sweep pots that do not have a goal amount set.
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Sweep {
+    /// The ID of the account to be swept
     #[serde(default)]
     pub current_account_id: String,
+
+    /// The goal amount of the current account itself
     #[serde(default)]
     pub current_account_goal: i64,
+
+    /// A list of names of pots that should be swept, in order
+    ///
+    /// When determining the pots, the names are normalised by removing emojis,
+    /// normalising capitalisation, and then stripping any leading or trailing
+    /// whitespace.
     pub pots: Vec<String>,
 }
 
 impl Operation for Sweep {
-    fn name(&self) -> &'static str {
-        "Sweep"
-    }
+    type Err = NotFoundError;
 
-    fn account_id(&self) -> &str {
-        &self.current_account_id
-    }
+    const NAME: &'static str = "Sweep";
 
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions<'a>, Error> {
-        let balance = state.balance.balance;
-        let pots = sort_and_filter_pots(&state.pots, &self.pots)?;
+    fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Self::Err> {
+        let account_state = state
+            .accounts
+            .get(&self.current_account_id)
+            .ok_or_else(|| {
+                NotFoundError(format!("account {} not found", self.current_account_id))
+            })?;
+        let balance = account_state.balance.balance;
+
+        let pots = sort_and_filter_pots(&self.current_account_id, &account_state.pots, &self.pots)?;
 
         let transactions =
             calculate_transactions(balance, self.current_account_goal * 100, pots.as_slice());
@@ -79,9 +95,10 @@ fn withdrawals<'a>(pots: &[&'a Pot]) -> (Vec<Transaction<'a>>, Vec<Transaction<'
 }
 
 fn sort_and_filter_pots<'a>(
+    account_id: &str,
     pots: &'a [Pot],
     pot_names: &'a [String],
-) -> Result<Vec<&'a Pot>, Error> {
+) -> Result<Vec<&'a Pot>, NotFoundError> {
     fn normalise(name: &str) -> String {
         let processed: String = name
             .chars()
@@ -91,7 +108,11 @@ fn sort_and_filter_pots<'a>(
         processed.trim().to_string()
     }
 
-    let mut active_pots: Vec<_> = pots.iter().filter(|pot| !pot.deleted).collect();
+    let mut active_pots: Vec<_> = pots
+        .iter()
+        .filter(|pot| pot.current_account_id == account_id)
+        .filter(|pot| !pot.deleted)
+        .collect();
 
     let mut info = Vec::default();
 
@@ -99,7 +120,7 @@ fn sort_and_filter_pots<'a>(
         let index = active_pots
             .iter()
             .position(|pot| normalise(&pot.name) == normalise(name))
-            .ok_or_else(|| Error::NotFound(format!("failed to find pot: {}", name)))?;
+            .ok_or_else(|| NotFoundError(format!("failed to find pot: {}", name)))?;
 
         info.push(active_pots.remove(index));
     }

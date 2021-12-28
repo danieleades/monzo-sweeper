@@ -538,6 +538,8 @@ dependencies = [
  "monz0-lib",
  "monzo-lib",
  "rusty-money",
+ "serde",
+ "serde_yaml",
  "tokio",
  "tracing",
  "tracing-subscriber",

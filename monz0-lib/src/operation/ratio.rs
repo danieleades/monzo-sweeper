@@ -1,11 +1,13 @@
 use crate::{
     client::State,
-    operation::{Error, Operation},
+    operation::{Operation},
     transactions::Transactions,
 };
 use monzo::Pot;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use super::NotFoundError;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Ratio {
@@ -17,6 +19,7 @@ pub struct Ratio {
 }
 
 impl Operation for Ratio {
+    type Err = NotFoundError;
     fn name(&self) -> &'static str {
         "Ratio"
     }
@@ -26,7 +29,7 @@ impl Operation for Ratio {
     }
 
     #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions, Error> {
+    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions, Self::Err> {
         let spare_cash = state.balance.balance;
 
         let denominator: u32 = self.pots.values().sum();

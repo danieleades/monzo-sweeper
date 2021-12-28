@@ -1,80 +1,28 @@
-use crate::{client::State, transactions::Transactions};
-use ratio::Ratio;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+//! Operations on Monzo pots
+
+use crate::{client::State, transactions::Ledger};
 
 mod sweep;
 pub use sweep::Sweep;
-mod ratio;
+// mod ratio;
+// pub use ratio::Ratio;
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error(transparent)]
-    Monzo(#[from] monzo::Error),
+/// Represents an operation that may be applied to the pots of an account
+pub trait Operation {
+    /// The error type returned by the operation
+    ///
+    /// Different operations may use custom error types
+    type Err: std::error::Error;
 
-    #[error("not found: {0}")]
-    NotFound(String),
-}
+    /// The name of the operation. Used for logging and pretty-printing
+    const NAME: &'static str;
 
-pub trait Operation: DeserializeOwned {
-    fn name(&self) -> &'static str;
-    fn account_id(&self) -> &str;
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions, Error>;
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Op {
-    Sweep(Sweep),
-    Ratio(Ratio),
-}
-
-impl Operation for Op {
-    fn name(&self) -> &'static str {
-        match self {
-            Self::Sweep(op) => op.name(),
-            Self::Ratio(op) => op.name(),
-        }
-    }
-
-    fn account_id(&self) -> &str {
-        match self {
-            Self::Sweep(op) => op.account_id(),
-            Self::Ratio(op) => op.name(),
-        }
-    }
-
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Transactions, Error> {
-        match self {
-            Self::Sweep(op) => op.transactions(state),
-            Self::Ratio(op) => op.transactions(state),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::Op;
-
-    #[test]
-    fn deserialise_yaml() {
-        let raw = r#"
-        - sweep:
-            current_account_goal: 10000
-
-            pots:
-            - bills
-            - lottery
-            - allowance
-            - student loan
-            - savings
-
-        - ratio:
-            current_account_goal: 10000
-            pots:
-              savings: 2
-              holiday: 1
-    "#;
-
-        serde_yaml::from_str::<Vec<Op>>(raw).unwrap();
-    }
+    /// Given an account state, generate a list of transactions to apply to that
+    /// account.
+    ///
+    /// # Errors
+    ///
+    /// This method may be fallible. It's up to specific implementations to
+    /// define the appropriate error type for the operation.
+    fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger, Self::Err>;
 }

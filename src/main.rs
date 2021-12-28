@@ -8,9 +8,9 @@
 mod app;
 mod config;
 mod logging;
+mod operation;
 
 use app::App;
-use monz0_lib::operation;
 
 #[tokio::main]
 async fn main() {

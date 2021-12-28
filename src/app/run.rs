@@ -1,9 +1,9 @@
 use clap::Parser;
-use monz0_lib::{Client, Transactions};
+use monz0_lib::{Client, Ledger};
 use monzo::Pot;
 use tracing::instrument;
 
-use crate::{config, operation::Operation};
+use crate::config;
 
 #[derive(Debug, Parser, Clone, Copy)]
 pub struct Run {
@@ -21,18 +21,18 @@ impl Run {
         tracing::info!("operations: {:#?}", &operations);
 
         for op in &operations {
-            let state = client.state(op.account_id()).await?;
-            println!("Running {}, account: {}", op.name(), op.account_id());
-            let transactions = op.transactions(&state)?;
+            let state = client.state().await?;
+            println!("Running {}", op.name());
+            let ledger = op.transactions(&state)?;
 
             if self.dry_run {
-                println!("{}", transactions_summary(op.account_id(), &transactions));
+                println!("{}", transactions_summary(&ledger));
                 println!("skipping execution ('dry-run' = true)");
-            } else if transactions.is_empty() {
+            } else if ledger.is_empty() {
                 println!("nothing to do ...");
             } else {
-                println!("{}", transactions_summary(op.account_id(), &transactions));
-                client.process_transactions(transactions).await?;
+                println!("{}", transactions_summary(&ledger));
+                client.process_ledger(&ledger).await?;
             }
         }
 
@@ -42,19 +42,22 @@ impl Run {
     }
 }
 
-fn transactions_summary(account_id: &str, transactions: &Transactions) -> String {
+fn transactions_summary(ledger: &Ledger) -> String {
     let mut summary = String::new();
 
-    summary += &format!("{}:\n", account_id);
-    for (pot, amount) in transactions {
-        summary += &format!("{}: {}\n", &pot.name, &format_currency(pot, amount));
+    for (account_id, transactions) in ledger {
+        summary += &format!("{}:\n", account_id);
+
+        for (pot, amount) in transactions {
+            summary += &format!("{}: {}\n", &pot.name, &format_currency(pot, amount));
+        }
     }
 
     summary
 }
 
 fn format_currency(pot: &Pot, amount: i64) -> String {
-    let currency = rusty_money::iso::find(&pot.currency).unwrap();
+    let currency = rusty_money::iso::find(&pot.currency).expect("unexpected currency ISO code");
     let money = rusty_money::Money::from_minor(amount, currency);
     format!("{}", money)
 }
