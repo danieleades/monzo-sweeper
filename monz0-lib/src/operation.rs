@@ -1,6 +1,6 @@
 //! Operations on Monzo pots
 
-use crate::{transactions::Ledger, State};
+use crate::{ledger::Ledger, State};
 
 /// 'Sweep' operation
 pub mod sweep;

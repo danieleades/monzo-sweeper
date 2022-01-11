@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{instrument, Level};
 
 use crate::{
+    ledger::Transactions,
     state::{self, State},
-    transactions::Transactions,
     Ledger,
 };
 
@@ -190,22 +190,20 @@ impl Client {
     async fn process_transactions(
         &self,
         account_id: &str,
-        transactions: &Transactions<'_>,
+        transactions: &Transactions,
     ) -> Result<(), monzo::Error> {
         let withdrawals = transactions.withdrawals.iter();
         let deposits = transactions.deposits.iter();
 
-        try_join_all(withdrawals.map(|(pot, amount)| {
-            self.withdraw_from_pot(&pot.id, &pot.current_account_id, *amount)
-        }))
+        try_join_all(
+            withdrawals.map(|(pot, amount)| self.withdraw_from_pot(&pot.id, account_id, *amount)),
+        )
         .await?;
 
         tracing::event!(Level::DEBUG, "processed withdrawals");
 
         try_join_all(
-            deposits.map(|(pot, amount)| {
-                self.deposit_into_pot(&pot.id, &pot.current_account_id, *amount)
-            }),
+            deposits.map(|(pot, amount)| self.deposit_into_pot(&pot.id, account_id, *amount)),
         )
         .await?;
 
