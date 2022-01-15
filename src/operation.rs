@@ -31,7 +31,7 @@ mod tests {
     #[test]
     fn deserialise_yaml() {
         //     let raw = r#"
-        //     - sweep: current_account_goal: 10000
+        //     - sweep: account_goal: 10000
 
         //         pots:
         //         - bills
@@ -45,7 +45,7 @@ mod tests {
 
         let raw = r#"
     - sweep:
-        current_account_goal: 10000
+        account_goal: 10000
 
         pots:
         - bills

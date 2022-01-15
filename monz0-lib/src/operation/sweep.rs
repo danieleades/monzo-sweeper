@@ -24,16 +24,43 @@ pub enum Error {
 /// above the goal amount into the next pot down the list.
 ///
 /// It is an error to sweep pots that do not have a goal amount set.
+///
+/// # Example
+///
+/// ```
+/// use monz0_lib::Sweep;
+///
+/// let sweep = Sweep::new("ACCCOUNT_ID".into(), 100.0).with_pot(savings);
+/// ```
+///
+/// The sweep operation also implements [`serde::Deserialize`]
+///
+/// ```
+/// use monz0_lib::Sweep;
+///
+/// let config = r#"
+/// account_goal: 10000
+///
+/// pots:
+///  - bills
+///  - lottery
+///  - allowance
+///  - student loan
+///  - savings
+/// "#;
+///
+/// let sweep: Sweep = serde_yaml::from_str(config).unwrap();
+/// ```
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Sweep {
     /// The ID of the account to be swept
     #[serde(default)]
-    current_account_id: String,
+    account_id: String,
 
     /// The goal amount of the current account itself
     #[serde(default)]
-    current_account_goal: i64,
+    account_goal: i64,
 
     /// A list of names of pots that should be swept, in order
     ///
@@ -43,25 +70,49 @@ pub struct Sweep {
     pots: Vec<String>,
 }
 
+impl Sweep {
+    /// Create a new [`Sweep`] operation
+    #[must_use]
+    pub fn new(account_id: String, account_goal: i64) -> Self {
+        Self {
+            account_id,
+            account_goal,
+            pots: Vec::default(),
+        }
+    }
+
+    /// Add a pot to the sweep operation
+    ///
+    /// the chosen pot must have a 'goal' set, otherwise the sweep operation
+    /// will return an error. Pot names are normalised before comparison, by
+    /// removing non-ASCII characters, capitalisation, and leading/trailing
+    /// whitespace.
+    #[must_use]
+    pub fn with_pot(mut self, name: String) -> Self {
+        self.pots.push(name);
+        self
+    }
+}
+
 impl Operation for Sweep {
     type Err = Error;
 
     const NAME: &'static str = "Sweep";
 
     fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Self::Err> {
-        let account_state = state.get(&self.current_account_id).ok_or_else(|| {
-            Error::NotFound(format!("account {} not found", self.current_account_id))
-        })?;
+        let account_state = state
+            .get(&self.account_id)
+            .ok_or_else(|| Error::NotFound(format!("account {} not found", self.account_id)))?;
         let balance = account_state.balance.balance;
 
-        let pots = sort_and_filter_pots(&self.current_account_id, &account_state.pots, &self.pots)?;
+        let pots = sort_and_filter_pots(&self.account_id, &account_state.pots, &self.pots)?;
 
-        let transactions = calculate_transactions(balance, self.current_account_goal * 100, pots);
+        let transactions = calculate_transactions(balance, self.account_goal * 100, pots);
 
         let mut ledger = Ledger::default();
 
         for (pot, amount) in transactions {
-            ledger.push(&self.current_account_id, pot, amount);
+            ledger.push(&self.account_id, pot, amount);
         }
 
         Ok(ledger)
@@ -190,7 +241,7 @@ mod tests {
     #[test]
     fn deserialise_yaml() {
         let raw = r#"
-        current_account_goal: 10000
+        account_goal: 10000
 
         pots:
          - bills
