@@ -29,7 +29,7 @@ impl<'a> Transactions<'a> {
     /// Checks whether there are zero transactions in the ledger
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.withdrawals.is_empty() && self.deposits.is_empty()
+        self.len() == 0
     }
 
     /// Returns the total number of transactions
