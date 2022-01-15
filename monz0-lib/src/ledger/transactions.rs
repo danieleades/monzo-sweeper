@@ -15,14 +15,14 @@ impl<'a> Transactions<'a> {
     /// Add a transaction to the ledger
     ///
     /// transactions with '0' value are ignored.
-    pub fn push(&mut self, transaction: (&'a Pot, i64)) {
-        let (pot, amount) = transaction;
+    pub fn push(&mut self, pot: &'a Pot, amount: i64) {
+        use std::cmp::Ordering;
 
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         match Ord::cmp(&amount, &0) {
-            std::cmp::Ordering::Less => self.withdrawals.push((pot, amount.abs() as u32)),
-            std::cmp::Ordering::Equal => (),
-            std::cmp::Ordering::Greater => self.deposits.push((pot, amount as u32)),
+            Ordering::Less => self.withdrawals.push((pot, amount.abs() as u32)),
+            Ordering::Equal => (),
+            Ordering::Greater => self.deposits.push((pot, amount as u32)),
         }
     }
 
@@ -98,13 +98,13 @@ mod tests {
         let mut transactions = Transactions::default();
         let pot = dummy_pot();
 
-        transactions.push((&pot, 100));
+        transactions.push(&pot, 100);
         assert!(transactions.deposits.len() == 1);
 
-        transactions.push((&pot, -100));
+        transactions.push(&pot, -100);
         assert!(transactions.withdrawals.len() == 1);
 
-        transactions.push((&pot, 0));
+        transactions.push(&pot, 0);
         assert!(transactions.len() == 2);
     }
 }
