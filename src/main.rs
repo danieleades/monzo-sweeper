@@ -1,3 +1,4 @@
+#![feature(derive_default_enum)]
 #![deny(
     clippy::all,
     missing_debug_implementations,

@@ -1,7 +1,6 @@
 use clap::Parser;
 
 mod show;
-use show::Show;
 
 mod run;
 use run::Run;
@@ -17,16 +16,11 @@ pub struct App {
     subcommand: Option<Subcommand>,
 }
 
-#[derive(Debug, Parser, Clone, Copy)]
+#[derive(Debug, Parser, Clone, Copy, Default)]
 enum Subcommand {
-    Show(Show),
+    #[default]
+    Show,
     Run(Run),
-}
-
-impl Default for Subcommand {
-    fn default() -> Self {
-        Self::Show(Show::default())
-    }
 }
 
 impl App {
@@ -38,7 +32,7 @@ impl App {
         logging::set_up(self.verbose);
         tracing::info!("logging configured");
         match self.subcommand.unwrap_or_default() {
-            Subcommand::Show(_show) => Show::run()?,
+            Subcommand::Show => show::run()?,
             Subcommand::Run(run) => run.run().await?,
         }
 

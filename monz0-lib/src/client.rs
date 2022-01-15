@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{instrument, Level};
 
 use crate::{
+    ledger::Transactions,
     state::{self, State},
-    transactions::Transactions,
     Ledger,
 };
 
@@ -164,7 +164,7 @@ impl Client {
         for account in self.accounts().await? {
             let account_id = account.id;
             let account_state = self.account_state(&account_id).await?;
-            state.accounts.insert(account_id, account_state);
+            state.insert(account_id, account_state);
         }
 
         Ok(state)
@@ -195,17 +195,15 @@ impl Client {
         let withdrawals = transactions.withdrawals.iter();
         let deposits = transactions.deposits.iter();
 
-        try_join_all(withdrawals.map(|(pot, amount)| {
-            self.withdraw_from_pot(&pot.id, &pot.current_account_id, *amount)
-        }))
+        try_join_all(
+            withdrawals.map(|(pot, amount)| self.withdraw_from_pot(&pot.id, account_id, *amount)),
+        )
         .await?;
 
         tracing::event!(Level::DEBUG, "processed withdrawals");
 
         try_join_all(
-            deposits.map(|(pot, amount)| {
-                self.deposit_into_pot(&pot.id, &pot.current_account_id, *amount)
-            }),
+            deposits.map(|(pot, amount)| self.deposit_into_pot(&pot.id, account_id, *amount)),
         )
         .await?;
 

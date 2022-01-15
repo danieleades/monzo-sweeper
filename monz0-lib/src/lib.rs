@@ -9,15 +9,14 @@
 )]
 #![warn(clippy::pedantic)]
 
+pub use monzo::Pot;
+mod ledger;
+pub use ledger::Ledger;
 mod client;
 pub mod state;
 #[doc(inline)]
 pub use state::State;
 pub mod operation;
+pub use client::{Auth, Client};
 #[doc(inline)]
 pub use operation::Operation;
-mod transactions;
-
-pub use client::{Auth, Client};
-pub use monzo::Pot;
-pub use transactions::{Ledger, Transactions};
