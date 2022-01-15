@@ -14,7 +14,7 @@ pub struct Transactions<'a> {
 impl<'a> Transactions<'a> {
     /// Add a transaction to the ledger
     ///
-    /// a
+    /// transactions with '0' value are ignored.
     pub fn push(&mut self, transaction: (&'a Pot, i64)) {
         let (pot, amount) = transaction;
 
@@ -94,7 +94,7 @@ mod tests {
     }
 
     #[test]
-    fn insert() {
+    fn push() {
         let mut transactions = Transactions::default();
         let pot = dummy_pot();
 
