@@ -17,7 +17,7 @@ impl<'a> Ledger<'a> {
         self.transactions
             .entry(account_id)
             .or_default()
-            .push((pot, amount));
+            .push(pot, amount);
     }
 
     /// Checks whether there are zero transactions in the ledger
