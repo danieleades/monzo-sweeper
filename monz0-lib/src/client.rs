@@ -164,7 +164,7 @@ impl Client {
         for account in self.accounts().await? {
             let account_id = account.id;
             let account_state = self.account_state(&account_id).await?;
-            state.accounts.insert(account_id, account_state);
+            state.insert(account_id, account_state);
         }
 
         Ok(state)
@@ -190,7 +190,7 @@ impl Client {
     async fn process_transactions(
         &self,
         account_id: &str,
-        transactions: &Transactions,
+        transactions: &Transactions<'_>,
     ) -> Result<(), monzo::Error> {
         let withdrawals = transactions.withdrawals.iter();
         let deposits = transactions.deposits.iter();

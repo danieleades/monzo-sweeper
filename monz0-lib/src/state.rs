@@ -4,12 +4,8 @@ use std::collections::HashMap;
 
 use monzo::{Balance, Pot};
 
-/// The balance and pots associated with respective account ids
-#[derive(Debug, Default)]
-pub struct State {
-    /// A map from account IDs to their respective [`state::Account`](Account)s
-    pub accounts: HashMap<String, Account>,
-}
+/// A map from account IDs to their respective [`state::Account`](Account)s
+pub type State = HashMap<String, Account>;
 
 /// The balance and pots associated with an account
 #[derive(Debug)]

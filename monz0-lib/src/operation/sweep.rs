@@ -1,57 +1,16 @@
 use std::cmp::Ordering;
 
+use monzo::Pot;
 use serde::{Deserialize, Serialize};
 
 use crate::{ledger::Ledger, operation::Operation, State};
 
-#[derive(Debug, PartialEq)]
-struct Pot {
-    id: String,
-    name: String,
-    balance: i64,
-    goal: i64,
-    currency: String,
-}
-
-impl Pot {
-    fn diff(&self) -> i64 {
-        self.goal - self.balance
-    }
-}
-
-impl From<Pot> for crate::Pot {
-    fn from(pot: Pot) -> Self {
-        crate::Pot {
-            name: pot.name,
-            id: pot.id,
-            currency: pot.currency,
-        }
-    }
-}
-
-impl TryFrom<monzo::Pot> for Pot {
-    type Error = Error;
-
-    fn try_from(value: monzo::Pot) -> Result<Self, Self::Error> {
-        let goal = value
-            .goal_amount
-            .ok_or_else(|| Error::NoPotGoal(value.name.to_string()))?;
-
-        Ok(Self {
-            id: value.id,
-            name: value.name,
-            balance: value.balance,
-            goal,
-            currency: value.currency,
-        })
-    }
-}
-
 /// Errors that can occur when processing a [`Sweep`] operation
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum Error {
-    /// a [`NotFoundError`] is returned when an account or pot configured in the
-    /// [`Sweep`] operation cannot be found in the monzo [`State`]
+    /// a [`NotFound`](Self::NotFound) is returned when an account or pot
+    /// configured in the [`Sweep`] operation cannot be found in the monzo
+    /// [`State`]
     #[error("not found: {0}")]
     NotFound(String),
 
@@ -90,12 +49,9 @@ impl Operation for Sweep {
     const NAME: &'static str = "Sweep";
 
     fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Self::Err> {
-        let account_state = state
-            .accounts
-            .get(&self.current_account_id)
-            .ok_or_else(|| {
-                Error::NotFound(format!("account {} not found", self.current_account_id))
-            })?;
+        let account_state = state.get(&self.current_account_id).ok_or_else(|| {
+            Error::NotFound(format!("account {} not found", self.current_account_id))
+        })?;
         let balance = account_state.balance.balance;
 
         let pots = sort_and_filter_pots(&self.current_account_id, &account_state.pots, &self.pots)?;
@@ -112,11 +68,11 @@ impl Operation for Sweep {
     }
 }
 
-fn calculate_transactions(
+fn calculate_transactions<'a>(
     current_account_balance: i64,
     current_account_goal: i64,
-    pots: impl IntoIterator<Item = Pot>,
-) -> Vec<Transaction> {
+    pots: impl IntoIterator<Item = &'a Pot>,
+) -> Vec<Transaction<'a>> {
     let (withdrawals, remainder) = withdrawals(pots);
 
     let total_withdrawals: i64 = withdrawals.iter().map(|(_pot, diff)| diff).sum();
@@ -144,7 +100,7 @@ fn calculate_transactions(
     transactions
 }
 
-type Transaction = (Pot, i64);
+type Transaction<'a> = (&'a Pot, i64);
 
 /// Returns the set of [`Transaction`]s needed to shift the balance of each
 /// [`Pot`] to its respective goal amount.
@@ -153,11 +109,13 @@ type Transaction = (Pot, i64);
 /// withdrawals and deposits respectively. Note that withdrawals should always
 /// be possible, but deposits are constrained by the available spare balance.
 /// Zero-value transactions are ignored.
-fn withdrawals(pots: impl IntoIterator<Item = Pot>) -> (Vec<Transaction>, Vec<Transaction>) {
+fn withdrawals<'a>(
+    pots: impl IntoIterator<Item = &'a Pot>,
+) -> (Vec<Transaction<'a>>, Vec<Transaction<'a>>) {
     pots.into_iter()
-        .filter(|pot| pot.diff() != 0)
+        .filter(|pot| pot.diff_unchecked() != 0)
         .map(|pot| {
-            let diff = pot.diff();
+            let diff = pot.diff_unchecked();
             (pot, diff)
         })
         .partition(|(_pot, diff)| diff < &0)
@@ -167,7 +125,7 @@ fn sort_and_filter_pots<'a>(
     account_id: &str,
     pots: &'a [monzo::Pot],
     pot_names: &'a [String],
-) -> Result<Vec<Pot>, Error> {
+) -> Result<Vec<&'a Pot>, Error> {
     fn normalise(name: &str) -> String {
         let processed: String = name
             .chars()
@@ -181,9 +139,17 @@ fn sort_and_filter_pots<'a>(
     // the configured one
     let mut active_pots = pots
         .iter()
-        .filter(|pot| pot.current_account_id == account_id)
+        // Filter out any pots that are 'deleted'
         .filter(|pot| !pot.deleted)
-        .map(|p| Pot::try_from(p.clone()))
+        // Filter out any pots where the account id doesn't match
+        .filter(|pot| pot.current_account_id == account_id)
+        // Check the pot has a goal set
+        .map(|pot| {
+            match pot.goal_amount {
+                Some(_) => Ok(pot),
+                None => Err(Error::NoPotGoal(pot.name.clone())),
+            }
+        })
         .collect::<Result<Vec<_>, Error>>()?;
 
     let mut info = Vec::default();
@@ -198,6 +164,21 @@ fn sort_and_filter_pots<'a>(
     }
 
     Ok(info)
+}
+
+trait PotExt {
+    /// the difference between a [`Pot`]s current balance and its goal balance
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the [`Pot`] doesn't have a goal amount set
+    fn diff_unchecked(&self) -> i64;
+}
+
+impl PotExt for Pot {
+    fn diff_unchecked(&self) -> i64 {
+        self.goal_amount.unwrap() - self.balance
+    }
 }
 
 #[cfg(test)]
@@ -227,7 +208,7 @@ mod tests {
         account_id: &'a str,
         pots: &'a [monzo::Pot],
         pot_names: &'a [String],
-    ) -> Result<Vec<Pot>, Error> {
+    ) -> Result<Vec<&'a Pot>, Error> {
         super::super::sort_and_filter_pots(account_id, pots, pot_names)
     }
 }

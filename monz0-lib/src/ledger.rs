@@ -1,24 +1,23 @@
 use std::collections::HashMap;
 
 mod transactions;
+use monzo::Pot;
 pub use transactions::Transactions;
-
-use crate::Pot;
 
 /// Represents a ledger of transactions (deposits and withdrawals) associated
 /// with their respective accounts
 #[derive(Debug, Default)]
 pub struct Ledger<'a> {
-    transactions: HashMap<&'a str, Transactions>,
+    transactions: HashMap<&'a str, Transactions<'a>>,
 }
 
 impl<'a> Ledger<'a> {
     /// Add a new transaction to the [`Ledger`]
-    pub fn push(&mut self, account_id: &'a str, pot: impl Into<Pot>, amount: i64) {
+    pub fn push(&mut self, account_id: &'a str, pot: &'a Pot, amount: i64) {
         self.transactions
             .entry(account_id)
             .or_default()
-            .push((pot.into(), amount));
+            .push((pot, amount));
     }
 
     /// Checks whether there are zero transactions in the ledger
@@ -39,7 +38,7 @@ impl<'a> Ledger<'a> {
 }
 
 impl<'a> IntoIterator for Ledger<'a> {
-    type Item = (&'a str, Transactions);
+    type Item = (&'a str, Transactions<'a>);
 
     type IntoIter = impl Iterator<Item = Self::Item>;
 
@@ -49,7 +48,7 @@ impl<'a> IntoIterator for Ledger<'a> {
 }
 
 impl<'a> IntoIterator for &'a Ledger<'a> {
-    type Item = (&'a str, &'a Transactions);
+    type Item = (&'a str, &'a Transactions<'a>);
 
     type IntoIter = impl Iterator<Item = Self::Item>;
 
