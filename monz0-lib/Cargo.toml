@@ -10,7 +10,7 @@ futures-util = "0.3.19"
 monzo-lib = "0.4.4"
 serde = { version = "1.0.132", features = ["derive"] }
 thiserror = "1.0.30"
-tokio = "1.16.0"
+tokio = "1.16.1"
 tracing = "0.1.29"
 
 [dev-dependencies]
