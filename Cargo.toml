@@ -10,7 +10,7 @@ members = [
 ]
 
 [dependencies]
-clap = { version = "3.0.12", features = ["derive"] }
+clap = { version = "3.0.14", features = ["derive"] }
 anyhow = "1.0.52"
 confy = { git = "https://github.com/rust-cli/confy.git", rev="664992aecd97b4af0eda8d9d2825885662e1c6b4", features = ["yaml_conf"], default_features = false}
 monz0-lib = { path = "./monz0-lib" }
