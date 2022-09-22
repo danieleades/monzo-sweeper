@@ -18,7 +18,7 @@ rusty-money = { version = "0.4.1", features = ["iso"] }
 tokio = { version = "1.16.0", features = ["rt-multi-thread", "macros", "sync"] }
 tracing = "0.1.29"
 tracing-subscriber = { version = "0.3.5", features = ["env-filter"] }
-serde = { version = "1.0.133", features = ["derive"] }
+serde = { version = "1.0.145", features = ["derive"] }
 indexmap = "1.8.0"
 
 [dev-dependencies]
