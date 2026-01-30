@@ -203,7 +203,7 @@ fn sort_and_filter_pots<'a>(
         let index = active_pots
             .iter()
             .position(|pot| normalise(&pot.name) == normalise(name))
-            .ok_or_else(|| Error::NotFound(format!("failed to find pot: {}", name)))?;
+            .ok_or_else(|| Error::NotFound(format!("failed to find pot: {name}")))?;
 
         info.push(active_pots.remove(index));
     }

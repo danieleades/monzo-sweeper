@@ -18,6 +18,6 @@ async fn main() {
     let app = App::from_cli();
 
     if let Err(e) = app.run().await {
-        println!("{}", e);
+        println!("{e}");
     }
 }

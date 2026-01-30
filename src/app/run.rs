@@ -47,7 +47,7 @@ fn transactions_summary(ledger: &Ledger) -> String {
     let mut summary = String::new();
 
     for (account_id, transactions) in ledger.iter() {
-        let _ = writeln!(summary, "{}:", account_id);
+        let _ = writeln!(summary, "{account_id}:");
 
         for (pot, amount) in transactions.iter() {
             let _ = writeln!(summary, "{}: {}", &pot.name, &format_currency(pot, amount));
@@ -60,5 +60,5 @@ fn transactions_summary(ledger: &Ledger) -> String {
 fn format_currency(pot: &Pot, amount: i64) -> String {
     let currency = rusty_money::iso::find(&pot.currency).expect("unexpected currency ISO code");
     let money = rusty_money::Money::from_minor(amount, currency);
-    format!("{}", money)
+    format!("{money}")
 }

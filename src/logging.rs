@@ -4,7 +4,7 @@ use crate::config;
 
 pub fn set_up(verbosity: u8) {
     let formatter = tracing_subscriber::fmt::format::debug_fn(|writer, _field, value| {
-        write!(writer, "{:?}", value)
+        write!(writer, "{value:?}")
     });
 
     let filter = EnvFilter::try_new("warn").unwrap().add_directive(
