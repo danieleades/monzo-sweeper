@@ -3,10 +3,10 @@ use std::cmp::Ordering;
 use monzo::Pot;
 use serde::{Deserialize, Serialize};
 
-use crate::{ledger::Ledger, operation::Operation, State};
+use crate::{State, ledger::Ledger, operation::Operation};
 
 /// Errors that can occur when processing a [`Sweep`] operation
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum Error {
     /// a [`NotFound`](Self::NotFound) is returned when an account or pot
     /// configured in the [`Sweep`] operation cannot be found in the monzo
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn deserialise_yaml() {
-        let raw = r#"
+        let raw = r"
         account_goal: 10000
 
         pots:
@@ -249,7 +249,7 @@ mod tests {
          - allowance
          - student loan
          - savings
-        "#;
+        ";
 
         serde_yaml::from_str::<Sweep>(raw).unwrap();
     }

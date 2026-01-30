@@ -1,4 +1,4 @@
-#![feature(derive_default_enum)]
+//! CLI entrypoint for monz0.
 #![deny(
     clippy::all,
     missing_debug_implementations,

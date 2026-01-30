@@ -1,18 +1,36 @@
-[package]
-name = "monz0"
-version = "0.1.0"
-edition = "2018"
-
 [workspace]
 members = [
     ".",
     "monz0-lib",
 ]
 
+[workspace.package]
+edition = "2024"
+rust-version = "1.85.0"
+
+[workspace.lints.rust]
+missing_docs = "deny"
+missing_debug_implementations = "deny"
+missing_copy_implementations = "deny"
+
+[workspace.lints.clippy]
+all = "deny"
+pedantic = "warn"
+nursery = "warn"
+
+[package]
+name = "monz0"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
 [dependencies]
 clap = { version = "3.0.12", features = ["derive"] }
 anyhow = "1.0.52"
-confy = { git = "https://github.com/rust-cli/confy.git", rev="664992aecd97b4af0eda8d9d2825885662e1c6b4", features = ["yaml_conf"], default_features = false}
+confy = { git = "https://github.com/rust-cli/confy.git", rev="664992aecd97b4af0eda8d9d2825885662e1c6b4", features = ["yaml_conf"], default-features = false}
 monz0-lib = { path = "./monz0-lib" }
 rusty-money = { version = "0.4.1", features = ["iso"] }
 tokio = { version = "1.16.0", features = ["rt-multi-thread", "macros", "sync"] }

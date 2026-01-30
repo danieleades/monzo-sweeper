@@ -1,4 +1,4 @@
-use monz0_lib::{operation::Sweep, Ledger, Operation, State};
+use monz0_lib::{Ledger, Operation, State, operation::Sweep};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -9,14 +9,14 @@ pub enum Op {
 }
 
 impl Op {
-    pub fn name(&self) -> &'static str {
+    pub const fn name(&self) -> &'static str {
         match self {
             Self::Sweep(_) => Sweep::NAME,
             // Self::Ratio(op) => op.name(),
         }
     }
 
-    pub fn transactions<'a>(&'a self, state: &'a State) -> anyhow::Result<Ledger> {
+    pub fn transactions<'a>(&'a self, state: &'a State) -> anyhow::Result<Ledger<'a>> {
         match self {
             Self::Sweep(op) => Ok(op.transactions(state)?),
             // Self::Ratio(op) => op.transactions(state),
@@ -43,7 +43,7 @@ mod tests {
         //     - ratio: current_account_goal: 10000 pots: savings: 2 holiday: 1
         // "#;
 
-        let raw = r#"
+        let raw = r"
     - sweep:
         account_goal: 10000
 
@@ -53,7 +53,7 @@ mod tests {
         - allowance
         - student loan
         - savings
-"#;
+";
 
         serde_yaml::from_str::<Vec<Op>>(raw).unwrap();
     }

@@ -21,7 +21,7 @@ pub fn set_up(verbosity: u8) {
         .init();
 }
 
-fn max_level(verbosity: u8) -> &'static str {
+const fn max_level(verbosity: u8) -> &'static str {
     match verbosity {
         0 => "warn",
         1 => "info",

@@ -18,11 +18,17 @@ impl<'a> Transactions<'a> {
     pub fn push(&mut self, pot: &'a Pot, amount: i64) {
         use std::cmp::Ordering;
 
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         match Ord::cmp(&amount, &0) {
-            Ordering::Less => self.withdrawals.push((pot, amount.abs() as u32)),
+            Ordering::Less => {
+                let amount = u32::try_from(amount.unsigned_abs())
+                    .expect("transaction amount should fit into u32");
+                self.withdrawals.push((pot, amount));
+            }
             Ordering::Equal => (),
-            Ordering::Greater => self.deposits.push((pot, amount as u32)),
+            Ordering::Greater => {
+                let amount = u32::try_from(amount).expect("transaction amount should fit into u32");
+                self.deposits.push((pot, amount));
+            }
         }
     }
 
@@ -36,14 +42,9 @@ impl<'a> Transactions<'a> {
     pub fn len(&self) -> usize {
         self.withdrawals.len() + self.deposits.len()
     }
-}
 
-impl<'a> IntoIterator for &'a Transactions<'a> {
-    type Item = (&'a Pot, i64);
-
-    type IntoIter = impl Iterator<Item = Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
+    /// Iterate over transactions as `(pot, signed_amount)` pairs.
+    pub fn iter(&'a self) -> impl Iterator<Item = (&'a Pot, i64)> + 'a {
         let withdrawals = self
             .withdrawals
             .iter()

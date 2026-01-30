@@ -7,25 +7,25 @@ name: Code Coverage
 
 jobs:
   coverage:
-    name: Test Coverage
+    name: coverage
     runs-on: ubuntu-latest
     steps:
-
       - name: checkout source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Install nightly toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly
-          profile: minimal
-          override: true
+          components: llvm-tools-preview
 
-      - name: Run cargo-tarpaulin
-        uses: actions-rs/tarpaulin@v0.1
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Run llvm-cov
+        run: cargo llvm-cov --all-features --doctests --workspace --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
         with:
-          args: --all-features # --tests --doc
-
-      - name: Upload to codecov.io
-        uses: codecov/codecov-action@v2.1.0
-
+          files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}

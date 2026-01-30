@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use monzo::{inner_client::Refreshable, Account, Balance, Pot};
+use monzo::{Account, Balance, Pot, inner_client::Refreshable};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, RwLock};
 
@@ -23,10 +23,10 @@ impl Client {
         let client = self.client.read().await;
 
         Auth {
-            access_token: client.access_token().to_string(),
-            client_id: client.client_id().to_string(),
-            client_secret: client.client_secret().to_string(),
-            refresh_token: client.refresh_token().to_string(),
+            access_token: client.access_token().clone(),
+            client_id: client.client_id().clone(),
+            client_secret: client.client_secret().clone(),
+            refresh_token: client.refresh_token().clone(),
         }
     }
 
