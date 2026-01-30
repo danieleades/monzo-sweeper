@@ -28,15 +28,15 @@ pub enum Error {
 /// # Example
 ///
 /// ```
-/// use monz0_lib::Sweep;
+/// use monz0_lib::operation::Sweep;
 ///
-/// let sweep = Sweep::new("ACCCOUNT_ID".into(), 100.0).with_pot(savings);
+/// let sweep = Sweep::new("ACCOUNT_ID".into(), 100).with_pot("savings".into());
 /// ```
 ///
 /// The sweep operation also implements [`serde::Deserialize`]
 ///
 /// ```
-/// use monz0_lib::Sweep;
+/// use monz0_lib::operation::Sweep;
 ///
 /// let config = r#"
 /// account_goal: 10000
