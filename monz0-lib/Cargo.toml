@@ -17,7 +17,7 @@ tracing = "0.1.29"
 
 [dev-dependencies]
 serde_json = "1.0"
-toml = "0.8"
+toml = "0.9"
 test-case = "3.0.0"
 
 [lints]
