@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use monzo::{inner_client::Refreshable, Account, Balance, Pot};
+use monzo::{Account, Balance, Pot, inner_client::Refreshable};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, RwLock};
 
@@ -23,10 +23,10 @@ impl Client {
         let client = self.client.read().await;
 
         Auth {
-            access_token: client.access_token().to_string(),
-            client_id: client.client_id().to_string(),
-            client_secret: client.client_secret().to_string(),
-            refresh_token: client.refresh_token().to_string(),
+            access_token: client.access_token().clone(),
+            client_id: client.client_id().clone(),
+            client_secret: client.client_secret().clone(),
+            refresh_token: client.refresh_token().clone(),
         }
     }
 
@@ -96,9 +96,7 @@ impl Client {
     async fn refresh_auth(&self) -> monzo::Result<()> {
         tracing::info!("attempting access token refresh");
 
-        let _refresh_lock = if let Ok(lock) = self.refresh_lock.try_lock() {
-            lock
-        } else {
+        let Ok(_refresh_lock) = self.refresh_lock.try_lock() else {
             tracing::debug!("another thread is already refreshing auth");
             return Ok(());
         };

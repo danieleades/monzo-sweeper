@@ -1,4 +1,4 @@
-#![feature(derive_default_enum)]
+//! CLI entrypoint for monz0.
 #![deny(
     clippy::all,
     missing_debug_implementations,
@@ -18,6 +18,6 @@ async fn main() {
     let app = App::from_cli();
 
     if let Err(e) = app.run().await {
-        println!("{}", e);
+        println!("{e}");
     }
 }

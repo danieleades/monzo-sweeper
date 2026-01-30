@@ -1,6 +1,6 @@
 //! Operations on Monzo pots
 
-use crate::{ledger::Ledger, State};
+use crate::{State, ledger::Ledger};
 
 /// 'Sweep' operation
 pub mod sweep;
@@ -26,5 +26,5 @@ pub trait Operation {
     ///
     /// This method may be fallible. It's up to specific implementations to
     /// define the appropriate error type for the operation.
-    fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger, Self::Err>;
+    fn transactions<'a>(&'a self, state: &'a State) -> Result<Ledger<'a>, Self::Err>;
 }

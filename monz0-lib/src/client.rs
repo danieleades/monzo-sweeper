@@ -1,20 +1,15 @@
 use futures_util::future::{try_join, try_join_all};
-use monzo::{inner_client::Quick, Balance, Pot};
+use monzo::{Balance, Pot, inner_client::Quick};
 use serde::{Deserialize, Serialize};
-use tracing::{instrument, Level};
+use tracing::{Level, instrument};
 
 use crate::{
+    Ledger,
     ledger::Transactions,
     state::{self, State},
-    Ledger,
 };
 
 mod auto_refresh;
-
-#[derive(Debug, Serialize, Deserialize)]
-struct BasicAuth {
-    access_token: String,
-}
 
 /// The authentication details used by the [`Client`]
 #[derive(Debug, Serialize, Deserialize)]
@@ -70,13 +65,17 @@ impl Client {
     pub async fn auth(&self) -> Auth {
         match &self.inner_client {
             InnerClient::Quick(client) => Auth::Basic {
-                access_token: client.access_token().to_string(),
+                access_token: client.access_token().clone(),
             },
             InnerClient::AutoRefresh(client) => Auth::Refreshable(client.auth().await),
         }
     }
 
     /// List the monzo accounts
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the Monzo API request fails.
     #[instrument(skip(self))]
     pub async fn accounts(&self) -> monzo::Result<Vec<monzo::Account>> {
         match &self.inner_client {
@@ -157,7 +156,11 @@ impl Client {
         Ok(state::Account { balance, pots })
     }
 
-    /// Retrieve the current state of the given account
+    /// Retrieve the current state of all accounts
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the Monzo API request fails.
     #[instrument(skip(self))]
     pub async fn state(&self) -> Result<State, monzo::Error> {
         let mut state = State::default();
@@ -172,10 +175,14 @@ impl Client {
 
     /// Complete the pot withdrawals and deposits described by the given
     /// [`Ledger`]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any Monzo API request fails.
     #[instrument(skip(self))]
     pub async fn process_ledger(&self, ledger: &Ledger<'_>) -> Result<(), monzo::Error> {
         try_join_all(
-            ledger.into_iter().map(|(account_id, transactions)| {
+            ledger.iter().map(|(account_id, transactions)| {
                 self.process_transactions(account_id, transactions)
             }),
         )

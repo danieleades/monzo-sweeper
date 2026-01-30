@@ -3,10 +3,10 @@ use std::cmp::Ordering;
 use monzo::Pot;
 use serde::{Deserialize, Serialize};
 
-use crate::{ledger::Ledger, operation::Operation, State};
+use crate::{State, ledger::Ledger, operation::Operation};
 
 /// Errors that can occur when processing a [`Sweep`] operation
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum Error {
     /// a [`NotFound`](Self::NotFound) is returned when an account or pot
     /// configured in the [`Sweep`] operation cannot be found in the monzo
@@ -28,28 +28,22 @@ pub enum Error {
 /// # Example
 ///
 /// ```
-/// use monz0_lib::Sweep;
+/// use monz0_lib::operation::Sweep;
 ///
-/// let sweep = Sweep::new("ACCCOUNT_ID".into(), 100.0).with_pot(savings);
+/// let sweep = Sweep::new("ACCOUNT_ID".into(), 100).with_pot("savings".into());
 /// ```
 ///
 /// The sweep operation also implements [`serde::Deserialize`]
 ///
 /// ```
-/// use monz0_lib::Sweep;
+/// use monz0_lib::operation::Sweep;
 ///
 /// let config = r#"
-/// account_goal: 10000
-///
-/// pots:
-///  - bills
-///  - lottery
-///  - allowance
-///  - student loan
-///  - savings
+/// account_goal = 10000
+/// pots = ["bills", "lottery", "allowance", "student loan", "savings"]
 /// "#;
 ///
-/// let sweep: Sweep = serde_yaml::from_str(config).unwrap();
+/// let sweep: Sweep = toml::from_str(config).unwrap();
 /// ```
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -209,7 +203,7 @@ fn sort_and_filter_pots<'a>(
         let index = active_pots
             .iter()
             .position(|pot| normalise(&pot.name) == normalise(name))
-            .ok_or_else(|| Error::NotFound(format!("failed to find pot: {}", name)))?;
+            .ok_or_else(|| Error::NotFound(format!("failed to find pot: {name}")))?;
 
         info.push(active_pots.remove(index));
     }
@@ -239,19 +233,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn deserialise_yaml() {
+    fn deserialise_toml() {
         let raw = r#"
-        account_goal: 10000
+account_goal = 10000
+pots = ["bills", "lottery", "allowance", "student loan", "savings"]
+"#;
 
-        pots:
-         - bills
-         - lottery
-         - allowance
-         - student loan
-         - savings
-        "#;
-
-        serde_yaml::from_str::<Sweep>(raw).unwrap();
+        toml::from_str::<Sweep>(raw).unwrap();
     }
 
     #[test_case("ACCOUNT_ID", &[], &[] => Ok(vec![]); "no op")]
@@ -260,6 +248,6 @@ mod tests {
         pots: &'a [monzo::Pot],
         pot_names: &'a [String],
     ) -> Result<Vec<&'a Pot>, Error> {
-        super::super::sort_and_filter_pots(account_id, pots, pot_names)
+        crate::operation::sweep::sort_and_filter_pots(account_id, pots, pot_names)
     }
 }
