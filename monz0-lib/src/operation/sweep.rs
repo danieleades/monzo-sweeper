@@ -248,6 +248,6 @@ pots = ["bills", "lottery", "allowance", "student loan", "savings"]
         pots: &'a [monzo::Pot],
         pot_names: &'a [String],
     ) -> Result<Vec<&'a Pot>, Error> {
-        super::super::sort_and_filter_pots(account_id, pots, pot_names)
+        crate::operation::sweep::sort_and_filter_pots(account_id, pots, pot_names)
     }
 }
