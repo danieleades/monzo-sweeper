@@ -34,7 +34,7 @@ clap = { version = "4.5", features = ["derive"] }
 anyhow = "1.0.52"
 confy = "2.0.0"
 monz0-lib = { version = "0.1.0", path = "./monz0-lib" }
-rusty-money = { version = "0.4.1", features = ["iso"] }
+rusty-money = { version = "0.5.0", features = ["iso"] }
 tokio = { version = "1.16.0", features = ["rt-multi-thread", "macros", "sync"] }
 tracing = "0.1.29"
 tracing-subscriber = { version = "0.3.5", features = ["env-filter"] }
