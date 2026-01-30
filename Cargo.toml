@@ -30,7 +30,7 @@ workspace = true
 [dependencies]
 clap = { version = "3.0.12", features = ["derive"] }
 anyhow = "1.0.52"
-confy = { git = "https://github.com/rust-cli/confy.git", rev="664992aecd97b4af0eda8d9d2825885662e1c6b4", features = ["yaml_conf"], default-features = false}
+confy = { version = "2.0.0", features = ["yaml_conf"], default-features = false }
 monz0-lib = { path = "./monz0-lib" }
 rusty-money = { version = "0.4.1", features = ["iso"] }
 tokio = { version = "1.16.0", features = ["rt-multi-thread", "macros", "sync"] }
