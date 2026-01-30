@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{ArgAction, Parser};
 
 mod show;
 
@@ -9,7 +9,7 @@ use crate::logging;
 
 #[derive(Debug, Parser, Clone, Copy)]
 pub struct App {
-    #[clap(short, long, parse(from_occurrences), global = true)]
+    #[clap(short, long, action = ArgAction::Count, global = true)]
     pub verbose: u8,
 
     #[clap(subcommand)]

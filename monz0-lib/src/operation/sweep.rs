@@ -39,17 +39,11 @@ pub enum Error {
 /// use monz0_lib::operation::Sweep;
 ///
 /// let config = r#"
-/// account_goal: 10000
-///
-/// pots:
-///  - bills
-///  - lottery
-///  - allowance
-///  - student loan
-///  - savings
+/// account_goal = 10000
+/// pots = ["bills", "lottery", "allowance", "student loan", "savings"]
 /// "#;
 ///
-/// let sweep: Sweep = serde_yaml::from_str(config).unwrap();
+/// let sweep: Sweep = toml::from_str(config).unwrap();
 /// ```
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -239,19 +233,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn deserialise_yaml() {
-        let raw = r"
-        account_goal: 10000
+    fn deserialise_toml() {
+        let raw = r#"
+account_goal = 10000
+pots = ["bills", "lottery", "allowance", "student loan", "savings"]
+"#;
 
-        pots:
-         - bills
-         - lottery
-         - allowance
-         - student loan
-         - savings
-        ";
-
-        serde_yaml::from_str::<Sweep>(raw).unwrap();
+        toml::from_str::<Sweep>(raw).unwrap();
     }
 
     #[test_case("ACCOUNT_ID", &[], &[] => Ok(vec![]); "no op")]

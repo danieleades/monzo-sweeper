@@ -2,7 +2,7 @@ use monz0_lib::{Ledger, Operation, State, operation::Sweep};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(tag = "type", rename_all = "lowercase")]
 pub enum Op {
     Sweep(Sweep),
     // Ratio(Ratio),
@@ -29,32 +29,13 @@ mod tests {
     use super::Op;
 
     #[test]
-    fn deserialise_yaml() {
-        //     let raw = r#"
-        //     - sweep: account_goal: 10000
+    fn deserialise_toml() {
+        let raw = r#"
+type = "sweep"
+account_goal = 10000
+pots = ["bills", "lottery", "allowance", "student loan", "savings"]
+"#;
 
-        //         pots:
-        //         - bills
-        //         - lottery
-        //         - allowance
-        //         - student loan
-        //         - savings
-
-        //     - ratio: current_account_goal: 10000 pots: savings: 2 holiday: 1
-        // "#;
-
-        let raw = r"
-    - sweep:
-        account_goal: 10000
-
-        pots:
-        - bills
-        - lottery
-        - allowance
-        - student loan
-        - savings
-";
-
-        serde_yaml::from_str::<Vec<Op>>(raw).unwrap();
+        toml::from_str::<Op>(raw).unwrap();
     }
 }

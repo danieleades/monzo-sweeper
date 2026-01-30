@@ -91,7 +91,7 @@ mod tests {
         }
         "#;
 
-        serde_yaml::from_str(pot).unwrap()
+        serde_json::from_str(pot).unwrap()
     }
 
     #[test]
