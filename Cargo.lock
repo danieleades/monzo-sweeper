@@ -732,9 +732,9 @@ dependencies = [
 
 [[package]]
 name = "monzo-lib"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "164c164fbd9461aeeb436c65e3e92a45fc12e9e347501c22468849a8c4ef5555"
+checksum = "1263fa2226f368f6cb2e4cb390b8fe555b09b258f57015da300da5f509177f33"
 dependencies = [
  "chrono",
  "erased-serde",

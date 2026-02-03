@@ -9,7 +9,7 @@ license.workspace = true
 
 [dependencies]
 futures-util = "0.3.19"
-monzo-lib = "0.6.0"
+monzo-lib = "0.6.1"
 serde = { version = "1.0.132", features = ["derive"] }
 thiserror = "2.0.18"
 tokio = "1.16.0"
